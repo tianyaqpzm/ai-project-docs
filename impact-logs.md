@@ -112,3 +112,27 @@
 - [x] 验证 4 个工程的 `.github/workflows/test.yml` 语法正确
 - [x] 验证 Java 工程 `mvn package` 不再默认跳过测试
 - [x] 验证 `timekeeper` 部署流包含测试步骤
+---
+
+## 2026-04-26 | Timekeeper i18n v17 兼容性修复
+
+### 修改概述
+修复了 `timekeeper` 中由于 `@ngx-translate` v17 版本不兼容导致的编译及运行时错误。将 i18n 配置方案从 `NgModule` 桥接模式切换到了纯函数式的 `provideTranslateService` 模式。
+
+### 触发原因
+`ngx-translate` v17 更改了 `TranslateHttpLoader` 的构造函数签名，不再支持手动通过参数注入 `HttpClient` 和路径信息，且原有 `toPromise()` 在 RxJS 7 中被弃用。
+
+### 影响评估
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **timekeeper** | ✅ 修复 | 解决了编译报错，统一了现代 Angular 的 Provider 配置模式。 |
+
+### 风险等级: 🟢 低
+- 修改仅涉及 `i18n.config.ts` 的 Provider 语法，不涉及业务逻辑。
+- `lastValueFrom` 替换 `toPromise()` 保障了异步初始化流程的稳定性。
+
+### 验证计划
+- [x] 验证 `ChatComponent` 编译报错消失
+- [x] 全量运行 `tests/core` 确保 `LanguageService` 及初始化链路正常
+- [x] 验证浏览器环境下多语言资源加载成功（基于 CI/CD 预览环境）
