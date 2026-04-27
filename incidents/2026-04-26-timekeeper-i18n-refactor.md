@@ -1,7 +1,7 @@
-# RCA: Timekeeper i18n Refactor and ngx-translate v17 Compatibility
+# RCA: ms-ng-view i18n Refactor and ngx-translate v17 Compatibility
 
 ## 问题背景 (Background)
-在开发 Timekeeper (Angular) 项目时，由于项目升级到了 Angular 18+ 以及 `@ngx-translate/core` v17，导致原有的国际化 (i18n) 配置代码无法通过编译，并且在组件中出现了 `TranslateService` 无法识别的问题。
+在开发 ms-ng-view (Angular) 项目时，由于项目升级到了 Angular 18+ 以及 `@ngx-translate/core` v17，导致原有的国际化 (i18n) 配置代码无法通过编译，并且在组件中出现了 `TranslateService` 无法识别的问题。
 
 ## 故障表现 (Issue Manifestation)
 1. **编译错误**: `src/app/core/configs/i18n.config.ts` 报错，提示 `TranslateHttpLoader` 构造函数参数不匹配。

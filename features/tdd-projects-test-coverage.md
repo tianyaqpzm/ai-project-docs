@@ -6,10 +6,10 @@
 
 | 工程 | 角色 | 现有测试 | 风险等级 |
 |------|------|---------|---------|
-| api-gateway | 统一入口（认证/路由） | ❌ 零覆盖 | 🔴 极高 |
-| ai-langchain4j | MCP Server（业务工具） | ⚠️ 7 个探索性测试 | 🟡 高 |
-| python-agent | Agent Brain（编排/LLM） | ⚠️ 2 个验证脚本 | 🟡 高 |
-| timekeeper | 前端 UI（Angular） | ❌ 零覆盖 | 🟠 中 |
+| ms-java-gateway | 统一入口（认证/路由） | ❌ 零覆盖 | 🔴 极高 |
+| ms-java-biz | MCP Server（业务工具） | ⚠️ 7 个探索性测试 | 🟡 高 |
+| ms-py-agent | Agent Brain（编排/LLM） | ⚠️ 2 个验证脚本 | 🟡 高 |
+| ms-ng-view | 前端 UI（Angular） | ❌ 零覆盖 | 🟠 中 |
 
 ## 测试策略总览
 
@@ -17,7 +17,7 @@
 
 ---
 
-## 🔵 工程一：api-gateway (Java / Spring WebFlux)
+## 🔵 工程一：ms-java-gateway (Java / Spring WebFlux)
 
 > **测试框架**: JUnit 5 + WebTestClient + spring-security-test
 
@@ -65,7 +65,7 @@
 
 ---
 
-## 🟢 工程二：ai-langchain4j (Java / Spring MVC)
+## 🟢 工程二：ms-java-biz (Java / Spring MVC)
 
 > **测试框架**: JUnit 5 + MockMvc + Mockito
 
@@ -109,7 +109,7 @@
 
 ---
 
-## 🟡 工程三：python-agent (Python / FastAPI)
+## 🟡 工程三：ms-py-agent (Python / FastAPI)
 
 > **测试框架**: pytest + pytest-asyncio + httpx (TestClient)
 
@@ -153,7 +153,7 @@
 
 ---
 
-## 🟠 工程四：timekeeper (Angular / TypeScript)
+## 🟠 工程四：ms-ng-view (Angular / TypeScript)
 
 > **测试框架**: Jest (已从 Karma/Jasmine 迁移)
 
@@ -206,8 +206,8 @@
 
 | 工程 | 架构守护 | 核心功能 | 合计 |
 |------|---------|---------|------|
-| api-gateway | 5 | 15 | **20** |
-| ai-langchain4j | 4 | 12 | **16** |
-| python-agent | 4 | 12 | **16** |
-| timekeeper | 3 | 13 | **16** |
+| ms-java-gateway | 5 | 15 | **20** |
+| ms-java-biz | 4 | 12 | **16** |
+| ms-py-agent | 4 | 12 | **16** |
+| ms-ng-view | 3 | 13 | **16** |
 | **总计** | **16** | **52** | **68** |
