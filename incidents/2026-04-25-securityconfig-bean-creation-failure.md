@@ -10,7 +10,7 @@ Gateway 服务启动即崩溃，无法提供任何服务。
 
 ## 影响范围
 
-- **直接影响**: `gateway-service` 完全不可用，所有前端请求 (Timekeeper)、Agent 请求 (python-agent) 均无法到达后端。
+- **直接影响**: `gateway-service` 完全不可用，所有前端请求 (ms-ng-view)、Agent 请求 (ms-py-agent) 均无法到达后端。
 - **间接影响**: 整个系统全挂 — 登录、聊天、知识库等所有功能不可用。
 
 ## 根因分析 (RCA)
@@ -76,7 +76,7 @@ Spring `@Value` 对这种嵌套 list 的解析存在歧义，尤其当 Nacos 远
 
 | 文件 | 变更类型 | 说明 |
 |------|----------|------|
-| `api-gateway/.../SecurityConfig.java` | MODIFY | 移除 `@Value`，改用构造器注入 `IgnoreWhiteProperties` |
+| `ms-java-gateway/.../SecurityConfig.java` | MODIFY | 移除 `@Value`，改用构造器注入 `IgnoreWhiteProperties` |
 
 ## 经验教训
 

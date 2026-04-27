@@ -14,15 +14,15 @@
     - Angular (Jest): `npm test -- --watchAll=false`
 
 ## 涉及范围
-- **api-gateway**:
+- **ms-java-gateway**:
     - 新增 `.github/workflows/test.yml`
     - 修改 `docker-build.yml`：移除 `-DskipTests`
-- **ai-langchain4j**:
+- **ms-java-biz**:
     - 新增 `.github/workflows/test.yml`
     - 修改 `docker-build.yml`：启用 PR 触发并移除 `-DskipTests`
-- **python-agent**:
+- **ms-py-agent**:
     - 新增 `.github/workflows/test.yml` (基于 `uv` 优化)
-- **timekeeper**:
+- **ms-ng-view**:
     - 新增 `.github/workflows/test.yml`
     - 修改 `cloudflare-pages.yml`：在 Build 前增加测试步骤
 

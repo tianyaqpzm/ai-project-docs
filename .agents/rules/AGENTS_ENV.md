@@ -21,10 +21,10 @@ Do not execute raw commands without this prefix, otherwise it will result in "co
 
 | 工程名 (Project) | 规则文件路径 (Relative Path) | 说明 |
 | :--- | :--- | :--- |
-| **api-gateway** | `.agent/rules/ai-code-ws.md` | Spring Cloud Gateway 规范 |
-| **ai-langchain4j** | `.agent/rules/ai-code-ws.md` | Java RAG & MCP 规范 |
-| **python-agent** | `.agent/rules/ai-code-ws.md` | FastAPI & LangGraph 规范 |
-| **timekeeper** | `.agent/rules/ai-code-ws.md` | Angular & RxJS 规范 |
+| **ms-java-gateway** | `.agent/rules/ai-code-ws.md` | Spring Cloud Gateway 规范 |
+| **ms-java-biz** | `.agent/rules/ai-code-ws.md` | Java RAG & MCP 规范 |
+| **ms-py-agent** | `.agent/rules/ai-code-ws.md` | FastAPI & LangGraph 规范 |
+| **ms-ng-view** | `.agent/rules/ai-code-ws.md` | Angular & RxJS 规范 |
 | **docs** | `.agents/rules/CONTRIBUTING.md` | 全局流程与 RAG 规范 |
 | **docs** | `.agents/rules/AGENTS_ENV.md` | 环境与终端执行约束 (本文件) |
 

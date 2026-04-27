@@ -41,7 +41,7 @@ Angular 应用使用了 `HashLocationStrategy`。当 Casdoor 回调时，URL 结
 
 ### 3.4 下游信息透传 (Header Injection)
 - **明文透传**：`JwtAuthenticationFilter` 在解析 Token 后，通过 `mutate().header()` 方式，将 `X-User-Id`、`X-User-Name`、`X-User-Avatar` 以明文 Header 形式注入请求。
-- **效果**：下游的 Java 业务微服务和 Python Agent 无需再处理复杂的 JWT 逻辑，直接通过 Request Header 获取用户信息，实现性能优化与架构解耦。
+- **效果**：下游的 Java 业务微服务和 ms-py-agent 无需再处理复杂的 JWT 逻辑，直接通过 Request Header 获取用户信息，实现性能优化与架构解耦。
 
 ## 4. 经验总结
 1. **拦截原则**：鉴权逻辑必须前置于路由逻辑。在集成 Spring Security 时，自定义认证 Filter 必须实现为 `WebFilter`。

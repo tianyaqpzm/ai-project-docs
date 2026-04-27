@@ -1,4 +1,4 @@
-# 问题复盘 (RCA): api-gateway 测试环境 YAML 冗余导致启动失败
+# 问题复盘 (RCA): ms-java-gateway 测试环境 YAML 冗余导致启动失败
 
 ## 事件回顾
 **日期**: 2026-04-25
