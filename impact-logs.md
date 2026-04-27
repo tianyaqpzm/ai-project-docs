@@ -244,3 +244,140 @@ GitHub Actions 环境缺乏运行中的 MongoDB 实例，且不同 BOM (Spring C
 ### 验证计划
 - [x] 启动 `ms-java-biz`，确认日志输出 `Successfully repaired schema history table`。
 - [x] 验证 Spring 上下文加载完成，MyBatis 相关 Bean 初始化正常。
+
+---
+
+## 2026-04-27 | ms-ng-view 静态资源加载路径修复与目录重构
+
+### 修改概述
+修复了 `ms-ng-view` 中国际化文件 (`i18n/*.json`) 加载失败导致的崩溃。优化了 `apiUrlInterceptor` 的拦截逻辑，并纠正了核心目录名拼写错误 (`intercepotors` -> `interceptors`)。
+
+### 触发原因
+1. **路径冲突**: 拦截器误将以 `./` 开头的相对路径（本地资源）识别为 API 请求，并强行拼接 `VITE_API_URL`。由于环境配置中端口号后缺少斜杠，导致生成了类似 `8443./i18n/` 的畸形 URL。
+2. **规范缺失**: 核心目录名存在拼写错误，影响代码可维护性。
+
+### 影响评估
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-ng-view** | ✅ 直接修复 | 恢复了 i18n 资源加载能力，应用可正常初始化。修正了全工程的拦截器引用。 |
+
+### 风险等级: 🟢 低
+- 修改仅涉及 URL 拼接逻辑的过滤条件。
+- 目录重命名已同步更新所有引用（`main.ts` 和单元测试）。
+
+### 验证计划
+- [ ] 验证浏览器 Network 面板中 `zh.json` 的请求 URL 为本地路径（如 `http://localhost:4200/i18n/zh.json`）
+- [ ] 确认页面翻译内容正常显示，不再报 `Unknown Error (Status 0)`
+- [ ] 运行 `tests/core/interceptors/` 下的测试用例确保逻辑稳健
+
+---
+
+## 2026-04-28 | 全工程日志可见性增强与 Docker 部署规范化
+
+### 修改概述
+提升了微服务全链路日志的可见性，并重构了 Docker 自动化部署流程。
+- **日志增强**: 将 `ms-java-gateway` 和 `ms-py-agent` 的核心路由与请求处理日志从 `DEBUG` 提升至 `INFO`。
+- **部署优化**: 为所有工程引入了 `docker image prune -af` 清理策略，并同步了 `ms-java-biz` 的 PR 自动部署逻辑。
+- **清理逻辑**: 在部署流程中增加了对旧项目名称（如 `python-agent`）的兼容性清理。
+
+### 触发原因
+1. **排障困难**: 生产环境默认级别为 INFO，导致无法在日志中直接观察网关路由转发的成败。
+2. **磁盘告警**: 旧镜像堆积导致 VPS 磁盘空间告警，且服务更名后旧容器仍占用资源导致 Nacos 注册混乱。
+
+### 影响评估
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-java-gateway** | 🟢 优化 | 日志量略微增加，但提供了关键的请求流转视图。 |
+| **ms-java-biz** | 🟡 变更 | 现在向主分支发起 `feature_*` PR 时也会触发自动部署，需注意测试环境稳定性。 |
+| **ms-py-agent** | ✅ 修复 | 解决了由于旧容器未清理导致的服务名冲突问题。 |
+| **ms-ng-view** | ⚪ 无影响 | 不涉及。 |
+
+### 风险等级: 🟢 低
+- 修改主要集中在日志配置和 CI/CD 脚本。
+- `prune -af` 会清理所有未运行的镜像，若 VPS 上运行着非本项目容器且需要保留旧镜像，请谨慎执行。
+
+### 验证计划
+- [x] 验证网关日志输出 `【网关请求】` 和 `【网关响应完成】` 
+- [x] 验证 `ms-java-biz` 的 PR 触发了 `Deploy to VPS` 步骤
+- [x] 验证 VPS 磁盘空间在部署后有明显回升
+---
+
+## 2026-04-28 | ms-py-agent Nacos 连接稳定性增强 (DNS & Timeout)
+
+### 修改概述
+解决了 Python Agent 连接 Nacos 时由于 DNS 解析延迟（Tailscale 环境）导致的 `Temporary failure in name resolution` 错误。
+- **重试机制**: 在 `NacosManager.connect()` 中引入了指数退避重试（默认 5 次）。
+- **超时优化**: 将 SDK 默认超时从 3s 提升至 10s，并支持通过 `NACOS_TIMEOUT` 环境变量动态配置。
+- **配置扩展**: 新增了 `NACOS_TIMEOUT` 和 `NACOS_RETRIES` 配置项。
+
+### 触发原因
+在跨网络（VPN/Tailscale）环境下，DNS 解析和 Auth 登录请求偶尔会超过 SDK 默认的 3 秒限制，或出现瞬间的域名解析失败。
+
+### 影响评估
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-py-agent** | ✅ 修复 | 极大提升了启动过程的容错性，避免了因 DNS 抖动导致的服务注册失败。 |
+
+### 风险等级: 🟢 低
+- 修改仅涉及 `NacosManager` 的连接逻辑，不影响核心业务流程。
+- 使用 Monkeypatch 方式修改 SDK 内部默认值是该 SDK 官方推荐的扩展方式。
+
+### 验证计划
+- [x] 手动模拟 DNS 解析延迟，确认重试机制正常触发并最终成功连接。
+- [x] 验证 `nacos.client.DEFAULTS["TIMEOUT"]` 被正确修改为 10s。
+- [x] 启动日志显示 `⚙️ Set Nacos default timeout to 10s`。
+
+---
+
+## 2026-04-27 | 全系统 Docker 健康检查规范化与故障修复
+
+### 修改概述
+解决了 `ms-java-gateway` 和 `ms-java-biz` 容器因缺少 Actuator 接口和 `curl` 工具导致的 `unhealthy` 状态。
+- **Java 层**: 统一引入 `spring-boot-starter-actuator` 依赖。
+- **Docker 层**: 在 `Dockerfile` 运行时镜像中预装 `curl`。
+- **配置层**: 统一在 `application.yaml` 中开放 `/actuator/health` 并确保 Security 白名单放行。
+
+### 触发原因
+容器启动后由于无法通过 `HEALTHCHECK` 校验被标记为不健康，影响服务高可用。
+
+### 影响评估
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-java-gateway** | ✅ 修复 | 恢复了容器健康状态，保障了 Nginx/LB 的正确分发。 |
+| **ms-java-biz** | ✅ 修复 | 规范了监控接口，解决了潜在的自动重启风险。 |
+| **ms-py-agent** | ⚪ 无影响 | 目前基于 Python 的健康检查逻辑正常。 |
+
+### 风险等级: 🟢 低
+- 仅涉及运维监控层面的依赖与配置。
+- 引入 Actuator 可能会略微增加内存占用，但在可控范围内。
+
+### 验证计划
+- [x] 验证 `ms-java-gateway` 的 `/actuator/health` 接口本地访问成功。
+- [ ] 重建镜像并确认 `docker ps` 中状态变为 `healthy`。
+
+---
+
+## [2026-04-27] 全局分布式 JWT 安全校验对齐
+
+### 修改背景
+为了统一微服务架构下的安全校验逻辑，避免 `ms-java-biz` 等下游服务裸奔，对所有涉及子工程进行了安全对齐。详细决策参见 [ADR 001](file:///Users/pei/projects/docs/architecture/001-distributed-jwt-validation.md)。
+
+### 影响评估
+| 子工程 | 影响程度 | 核心变更 |
+| :--- | :--- | :--- |
+| **ms-java-biz** | 🟡 中 | **重大变更**：引入 Spring Security，所有 MCP 和业务接口现在必须携带合法 JWT 才能访问。 |
+| **ms-py-agent** | ⚪ 无 | 已在 Nacos 配置模版中补充 `JWT_SECRET`，确保配置可见性。 |
+| **ms-java-gateway** | ⚪ 无 | 作为签发者，配置保持不变。 |
+
+### 风险等级: 🟡 中
+- **兼容性风险**：所有未携带 Token 的服务间调用（如旧版的 MCP 调试工具）将会失败。
+- **配置风险**：必须确保 Nacos 中的 `JWT_SECRET` 在三个工程间严格一致。
+
+### 验证计划
+- [x] `ms-java-biz` 启动正常，`/health` 接口放行。
+- [x] 未携带 Token 请求 `ms-java-biz` 接口返回 403/401。
+- [x] 携带网关签发的 Token 请求 `ms-java-biz` 接口访问成功。

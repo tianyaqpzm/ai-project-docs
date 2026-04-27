@@ -15,7 +15,7 @@ trigger: always_on
 
 
 ## 约束
-核心研发流程，使用antigravity 配置awesome-skills需按照下面规则：
+核心研发流程（使用中文记录在案），使用antigravity 配置awesome-skills需按照下面规则：
 文档先行：
  * 通过@brainstorming 或@feature-spec 在编写任何代码前先输出需求或特性文档
  * 在完成一个功能模块，自动提取GIT修改或当前上下文，生成人类可读的变更记录
