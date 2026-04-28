@@ -381,3 +381,21 @@ GitHub Actions 环境缺乏运行中的 MongoDB 实例，且不同 BOM (Spring C
 - [x] `ms-java-biz` 启动正常，`/health` 接口放行。
 - [x] 未携带 Token 请求 `ms-java-biz` 接口返回 403/401。
 - [x] 携带网关签发的 Token 请求 `ms-java-biz` 接口访问成功。
+
+---
+
+## [2026-04-27] 修复 ms-ng-view 流式会话列表多次刷新 Bug
+
+### 修改背景
+在聊天页面发起新会话请求时，侧边栏会出现多次刷新或重复条目。原因是在流式响应过程中，每次 `DownloadProgress` 事件都触发了列表刷新逻辑。
+
+### 影响评估
+| 子工程 | 影响程度 | 核心变更 |
+| :--- | :--- | :--- |
+| **ms-ng-view** | 🟢 低 | 修改 `ChatComponent.ts` 逻辑，将列表刷新限制在 `HttpEventType.Response` 分支内。 |
+| **其他** | ⚪ 无 | 无逻辑变更。 |
+
+### 验证计划
+- [x] 代码已通过 `replace_file_content` 修复。
+- [ ] 验证在开启新会话并发送第一条消息时，侧边栏仅刷新一次。
+
