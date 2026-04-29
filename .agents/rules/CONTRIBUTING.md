@@ -11,7 +11,7 @@ trigger: always_on
 |特性定义|/docs/features/{feature-name}.md|记录特性的业务逻辑、涉及的子工程、接口变动|
 |问题复盘|/docs/incidents/{date}-{issue}.md|记录线上故障或重大 Bug 的根因分析（RCA）|
 |架构决策|/docs/architecture/{id}-decision.md|记录技术选型、架构调整的决策过程（ADR）|
-|影响评估|/docs/impact-logs.md|影响评估汇总记录每次重大修改对其他工程的潜在影响|
+|影响评估|/docs/impact-logs.md|影响评估汇总记录每次重大修改对其他工程的潜在影响，按时间维度排序，最新的在最前面|
 
 
 ## 约束
@@ -32,3 +32,4 @@ trigger: always_on
 
 ## 注意事项：
  * 完善、追加内容时避免覆盖上一行内容
+ * 实施计划 采用中文描述
