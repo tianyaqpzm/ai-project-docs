@@ -1,0 +1,76 @@
+openapi: 3.0.0
+info:
+  title: ms-java-biz Recipe API
+  description: 菜谱管理与推荐接口文档
+  version: 1.0.0
+
+servers:
+  - url: /api/business
+    description: 业务服务 API 根路径
+
+paths:
+  /recipes/recommend:
+    get:
+      summary: 获取个性化菜谱推荐
+      description: 根据当前时间、用户偏好等返回推荐的菜谱列表。
+      responses:
+        '200':
+          description: 成功返回推荐列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RecipeDTO'
+
+  /recipes/favorite:
+    post:
+      summary: 收藏/取消收藏菜谱
+      description: 切换菜谱的收藏状态。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                recipeId:
+                  type: integer
+                  format: int64
+                isFavorite:
+                  type: boolean
+      responses:
+        '200':
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+
+components:
+  schemas:
+    RecipeDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+          example: "玉米肉沫拌饭"
+        difficulty:
+          type: string
+          enum: [EASY, MEDIUM, HARD]
+          example: "MEDIUM"
+        difficultyLabel:
+          type: string
+          example: "中等"
+        imageUrl:
+          type: string
+          example: "https://example.com/images/recipe1.jpg"
+        isFavorite:
+          type: boolean
+          example: false

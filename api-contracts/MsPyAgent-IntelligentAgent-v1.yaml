@@ -1,0 +1,183 @@
+openapi: 3.0.0
+info:
+  title: MsPyAgent Intelligent Agent API
+  description: 智能 Agent 对话、RAG 检索与问答接口文档
+  version: 1.0.0
+
+servers:
+  - url: /
+    description: 网关根路径
+
+paths:
+  /rest/dark/v1/agent/chat:
+    post:
+      tags:
+        - Intelligent Agent
+      summary: Agent 智能对话 (SSE)
+      description: 发送消息给智能 Agent，通过 LangGraph 工作流处理并流式返回 Token。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        '200':
+          description: SSE 流响应开始
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                example: "data: {\"content\": \"你好\"}\n\n"
+
+  /rest/kb/v1/documents/ingest:
+    post:
+      tags:
+        - Knowledge Base
+      summary: 本地文件入库分析及索引
+      description: 接收本地物理文件路径，调用智能提取与向量化索引，存入数据库。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestRequest'
+      responses:
+        '201':
+          description: 入库成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  metrics:
+                    type: object
+
+  /rest/kb/v1/retrieve:
+    post:
+      tags:
+        - Knowledge Base
+      summary: 知识库检索 (向量查询)
+      description: 根据查询文本在指定分类中检索最相关的知识片段。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RetrievalRequest'
+      responses:
+        '200':
+          description: 检索成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetrievalResponse'
+
+  /rest/kb/v1/ask:
+    post:
+      tags:
+        - Knowledge Base
+      summary: 知识检索+聊天集成回答
+      description: 接收提问，先检索知识库，再由 LLM 生成答案。支持 SSE 流式返回。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AskRequest'
+      responses:
+        '200':
+          description: SSE 或 JSON 响应
+          content:
+            text/event-stream:
+              schema:
+                type: string
+            application/json:
+              schema:
+                type: object
+
+components:
+  schemas:
+    ChatRequest:
+      type: object
+      properties:
+        session_id:
+          type: string
+        message:
+          type: string
+        topic_id:
+          type: string
+      required:
+        - session_id
+        - message
+
+    IngestRequest:
+      type: object
+      properties:
+        file_path:
+          type: string
+          description: 物理文件的绝对路径
+        category:
+          type: string
+          description: 分类标签
+        tenant_id:
+          type: string
+          default: default
+        chunk_size:
+          type: integer
+        chunk_overlap:
+          type: integer
+        separators:
+          type: array
+          items:
+            type: string
+      required:
+        - file_path
+        - category
+
+    RetrievalRequest:
+      type: object
+      properties:
+        query:
+          type: string
+        category:
+          type: string
+        tenant_id:
+          type: string
+          default: default
+        top_k:
+          type: integer
+          minimum: 1
+          maximum: 20
+          default: 5
+      required:
+        - query
+
+    RetrievalResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        total_found:
+          type: integer
+
+    AskRequest:
+      type: object
+      properties:
+        query:
+          type: string
+        category:
+          type: string
+        tenant_id:
+          type: string
+          default: default
+        stream:
+          type: boolean
+          default: true
+      required:
+        - query

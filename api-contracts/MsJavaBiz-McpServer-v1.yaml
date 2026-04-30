@@ -1,0 +1,117 @@
+openapi: 3.0.0
+info:
+  title: MsJavaBiz Mcp Server API
+  description: 基于 MCP (Model Context Protocol) 的工具调用与 SSE 握手接口文档
+  version: 1.0.0
+
+servers:
+  - url: /
+    description: 网关根路径
+
+paths:
+  /mcp/sse:
+    get:
+      tags:
+        - Mcp
+      summary: MCP SSE 握手连接
+      description: 建立长连接以接收 MCP 协议相关的事件（如 Endpoint 声明）。
+      responses:
+        '200':
+          description: SSE 流连接成功
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                example: "event: endpoint\ndata: /mcp/messages?sessionId=uuid-xxx\n\n"
+
+  /mcp/messages:
+    post:
+      tags:
+        - Mcp
+      summary: MCP 协议消息处理 (JSON-RPC)
+      description: 处理 MCP 客户端发送的 JSON-RPC 请求，包括初始化、获取工具列表、调用工具等。
+      parameters:
+        - name: sessionId
+          in: query
+          required: true
+          schema:
+            type: string
+          description: SSE 握手时生成的会话 ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JsonRpcRequest'
+      responses:
+        '200':
+          description: 请求已接收 (响应通过 SSE 推送)
+
+components:
+  schemas:
+    JsonRpcRequest:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          example: "2.0"
+        id:
+          type: string
+          example: "1"
+        method:
+          type: string
+          enum: [initialize, tools/list, tools/call, notifications/initialized]
+        params:
+          type: object
+          description: 具体的请求参数，根据 method 变化
+      required:
+        - jsonrpc
+        - method
+
+    JsonRpcResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          example: "2.0"
+        id:
+          type: string
+        result:
+          type: object
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+            message:
+              type: string
+
+    ToolDefinition:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        inputSchema:
+          type: object
+          description: JSON Schema 格式的输入定义
+
+    ToolResult:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/Content'
+        isError:
+          type: boolean
+
+    Content:
+      type: object
+      properties:
+        type:
+          type: string
+          example: "text"
+        text:
+          type: string

@@ -5,6 +5,35 @@
 
 ---
 
+## 2026-04-29 | ms-java-gateway Nacos 连接修复与属性绑定健壮性增强
+
+### 修改概述
+解决了 `ms-java-gateway` 在 `dev` 环境下无法连接 Nacos 命名空间以及由于配置缺失导致的 OAuth2 属性绑定崩溃问题。
+- **配置修复**: 在 `bootstrap.yml` 中补全了 `namespace` 配置，对齐了 `ms-java-biz` 的 Nacos 连接规范。
+- **健壮性优化**: 在 `application.yml` 中为 OAuth2 Casdoor Provider 引入了占位符 `issuer-uri`，防止因配置中心未加载导致的服务直接崩溃。
+- **问题复盘**: 建立了 [RCA: ms-java-gateway 连接 Nacos 失败及 OAuth2 属性绑定崩溃](file:///Users/pei/projects/docs/incidents/20260429-nacos-connection-failure.md)。
+
+### 触发原因
+1. **配置疏漏**: `ms-java-gateway` 的 Bootstrap 阶段未感知环境变量中的 `NACOS_NAMESPACE`。
+2. **Namespace ID 疑云**: 观察到 `ms-java-biz` 同样无法获取配置，怀疑 Nacos 命名空间应使用 **UUID (ID)** 而非名称。
+
+### 影响评估
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-java-gateway** | ✅ 修复 | 恢复了配置中心连接能力，解决了启动崩溃 Bug。 |
+| **ms-java-biz** | ⚪ 潜在关联 | 确认了命名空间配置的通用规范，建议同步检查 Namespace ID。 |
+
+### 风险等级: 🟢 低
+- 仅涉及配置引导逻辑，不影响核心路由转发业务。
+- 引入占位符增加了系统的容错性。
+
+### 验证计划
+- [x] 验证 `ms-java-gateway` 启动不再报 `ConverterNotFoundException`。
+- [ ] 检查 Nacos 确认 Namespace ID 并更新 `launch.json`（待用户执行）。
+
+---
+
 ## 2026-04-28 | ms-java-biz 聊天会话同步架构优化与 Flyway 启动修复
 
 ### 修改概述

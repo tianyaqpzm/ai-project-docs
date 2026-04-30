@@ -1,0 +1,146 @@
+openapi: 3.0.0
+info:
+  title: MsJavaBiz Time Limited Event API
+  description: 限时活动与日程管理接口文档
+  version: 1.0.0
+
+servers:
+  - url: /
+    description: 网关根路径
+
+paths:
+  /rest/dark/v1/time-limit-events:
+    get:
+      tags:
+        - Time Limited Event
+      summary: 获取所有限时活动
+      description: 返回系统中注册的所有限时活动列表。
+      responses:
+        '200':
+          description: 成功返回活动列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventDto'
+    post:
+      tags:
+        - Time Limited Event
+      summary: 创建限时活动
+      description: 创建一个新的限时活动。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventDto'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventDto'
+
+  /rest/dark/v1/time-limit-events/{id}:
+    get:
+      tags:
+        - Time Limited Event
+      summary: 获取指定活动详情
+      description: 根据 ID 获取特定活动的详细信息。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功返回活动详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventDto'
+        '404':
+          description: 活动未找到
+
+    put:
+      tags:
+        - Time Limited Event
+      summary: 更新限时活动
+      description: 修改指定 ID 的活动信息。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventDto'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventDto'
+
+    delete:
+      tags:
+        - Time Limited Event
+      summary: 删除限时活动
+      description: 根据 ID 删除指定的活动。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 删除成功
+
+components:
+  schemas:
+    EventDto:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        category:
+          type: string
+          description: 活动分类
+        date:
+          type: string
+          format: date
+          description: 活动日期
+        time:
+          type: string
+          description: 活动时间 (如 10:00)
+        description:
+          type: string
+        repeatYearly:
+          type: boolean
+          description: 是否每年重复
+        appearance:
+          $ref: '#/components/schemas/AppearanceDto'
+        createdAt:
+          type: string
+          format: date-time
+
+    AppearanceDto:
+      type: object
+      properties:
+        type:
+          type: string
+          description: 展示类型 (icon/color)
+        value:
+          type: string
+          description: 展示内容 (图标名或颜色值)
