@@ -29,6 +29,12 @@ paths:
               schema:
                 type: string
                 example: "您好，我是协和小智，请问有什么可以帮您？"
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /rest/dark/v1/history:
     get:
@@ -52,6 +58,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ChatMessage'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /rest/dark/v1/history/sessions:
     get:
@@ -68,6 +80,10 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ChatSessionDto'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /rest/dark/v1/history/sessions/{sessionId}:
     delete:
@@ -84,8 +100,34 @@ paths:
       responses:
         '240':
           description: 删除成功 (No Content)
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
 components:
+  responses:
+    BadRequestError:
+      description: 参数异常 (DEP_0100)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnauthorizedError:
+      description: 未授权 (JWT 校验失败)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: 系统内部错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
   schemas:
     ChatForm:
       type: object
@@ -131,3 +173,26 @@ components:
           type: string
           format: date-time
           description: 最后活跃时间
+
+    ErrorResponse:
+      type: object
+      properties:
+        traceId:
+          type: string
+          description: 全链路追踪 ID
+        status:
+          type: integer
+          description: HTTP 状态码
+        error_code:
+          type: string
+          description: 业务自定义错误码 (如 DEP_0100 代表参数异常)
+        error_msg:
+          type: string
+          description: 业务自定义错误消息 (支持国际化)
+        path:
+          type: string
+          description: 请求路径
+        timestamp:
+          type: string
+          format: date-time
+          description: 错误发生时间

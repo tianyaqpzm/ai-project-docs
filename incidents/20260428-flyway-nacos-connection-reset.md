@@ -72,5 +72,44 @@ Flyway 默认在 PostgreSQL 上使用“咨询锁 (Advisory Lock)”，该锁严
 *   **基础设施版本对齐**：升级核心中间件（如 PostgreSQL 16）时，必须同步评估迁移工具（Flyway）和驱动的协议兼容性，不能仅依赖框架默认版本。
 *   **拒绝流水账式排查**：在遇到 `EOFException` 等底层网络错误时，应优先从物理链路（连接池、代理、协议版本）入手，而非仅在应用代码层面寻找逻辑补丁。
 
-## 关联决策
-见 [ADR-006: Flyway-Nacos 冲突解决方案](../architecture/006-flyway-nacos-conflict-resolution.md)
+## 补充方案：极致延迟初始化与被动会话管理 (2026-05-01 更新)
+
+在 04-28 方案的基础上，针对部分云端环境（特别是通过 PgBouncer 代理连接的集群）仍然出现的 `Unable to restore connection` 顽疾，我们实施了更为彻底的“双保险”方案。
+
+### 1. 启动时序重构：ApplicationReadyEvent 手动触发
+*   **做法**：在 `application.yml` 中设置 `spring.flyway.enabled: false`。
+*   **核心逻辑**：编写 `FlywayConfig` 配置类，利用 `@EventListener(ApplicationReadyEvent.class)` 监听应用就绪事件。
+*   **收益**：确保 Flyway 在 Nacos 客户端心跳、HikariCP 连接池就绪以及所有环境变量完全注入后的“稳态”下启动。**彻底消除了 Bootstrap 阶段 Nacos 异步刷新导致的物理连接销毁风险。**
+
+### 2. 被动会话管理：绕过 `restoreOriginalState` 陷阱 (关键突破)
+
+#### 1). PgBouncer 事务模式冲突 (PgBouncer Transaction Mode Conflict)
+*   **核心矛盾**：数据库通过 PgBouncer 的 `transaction` 模式暴露。在此模式下，代理要求连接在事务结束后立即归还池，且尽量保持无状态。
+*   **死锁点**：
+    1.  Flyway 默认在迁移前后发送 `SET search_path` 和获取 `Advisory Lock`（咨询锁）。
+    2.  PgBouncer 会拦截或标记这些 Session 级指令。
+    3.  由于地理跨度带来的网络延迟，当 Flyway 驱动在操作结束尝试 `restoreOriginalState`（还原会话）时，物理连接可能已被代理由于安全或超时策略强制断开。
+*   **表现**：驱动在发送还原指令时收到 `EOF` 信号，抛出 `Unable to restore connection`。
+
+#### 2). Nacos 异步刷新竞争 (Nacos Bootstrap Race Condition)
+*   **现象**：在 Spring Boot 启动的 `Bootstrap` 阶段，Nacos 客户端会多次刷新配置。
+*   **冲突**：若 Flyway 在刷新间隙开始执行，Nacos 导致的 `ApplicationContext` 部分刷新可能会触发 `HikariDataSource` 的销毁与重建，直接中断正在进行的数据库迁移长连接。
+
+*   **做法**：在代码配置中 **移除** `.schemas("public")` 调用，改为在 JDBC URL 中硬编码 `options=-c search_path=public`。
+*   **深度原理**：Flyway 的报错源于驱动尝试重置会话状态（如 `search_path`）。
+    *   **默认行为**：Flyway API 显式指定 schema -> 驱动发送 `SET search_path` -> 退出时驱动尝试 `RESTORE` -> 连接不稳时触发 EOF。
+    *   **优化行为**：URL 静态指定 -> 驱动认为会话状态从未被工具修改过 -> 退出时跳过 `restoreOriginalState` 逻辑 -> **即使连接有抖动也不会抛出状态恢复异常。**
+
+### 3. 适配代理环境：禁用咨询锁 (Proxy-Friendly Locking)
+*   **做法**：配置 `Map.of("flyway.postgresql.transactional.lock", "false")`。
+*   **核心逻辑**：PgBouncer 在 **Transaction Mode** 下不支持会话级咨询锁。强制 Flyway 使用常规的表级排他锁，既保证了迁移的互斥性，又规避了因代理层不支持会话锁而导致的事务回滚。
+
+## 微服务环境下的 Flyway 治理准则 (Best Practices)
+1.  **参数静态化原则**：所有会话级参数（`search_path`, `statement_timeout`）应优先通过 JDBC URL 传递，而非通过 Flyway API 或 SQL 指令动态设置，以最大限度减少驱动的状态追踪负担。
+2.  **生命周期解耦**：在分布式配置中心（Nacos/Apollo）环境下，建议关闭 Flyway 自动装配，改用 `ApplicationReadyEvent` 手动触发，确保所有动态配置已“尘埃落定”。
+3.  **连接池独立化**：迁移连接不应与业务请求共享同一个连接池，应使用独立的、长超时的直连配置，防止业务高并发干扰迁移过程。
+
+## 关联决策与代码
+*   [FlywayConfig.java](../../ms-java-biz/src/main/java/com/dark/aiagent/config/FlywayConfig.java)
+*   [application.yaml](../../ms-java-biz/src/main/resources/application.yaml)
+*   [ADR-006: Flyway-Nacos 冲突解决方案](../architecture/006-flyway-nacos-conflict-resolution.md)

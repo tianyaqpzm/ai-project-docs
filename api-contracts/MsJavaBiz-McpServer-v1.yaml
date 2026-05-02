@@ -23,6 +23,10 @@ paths:
               schema:
                 type: string
                 example: "event: endpoint\ndata: /mcp/messages?sessionId=uuid-xxx\n\n"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /mcp/messages:
     post:
@@ -46,8 +50,34 @@ paths:
       responses:
         '200':
           description: 请求已接收 (响应通过 SSE 推送)
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
 components:
+  responses:
+    BadRequestError:
+      description: 参数异常 (DEP_0100)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnauthorizedError:
+      description: 未授权 (JWT 校验失败)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: 系统内部错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
   schemas:
     JsonRpcRequest:
       type: object
@@ -95,7 +125,7 @@ components:
           type: string
         inputSchema:
           type: object
-          description: JSON Schema 格式的输入定义
+          description: JSON Schema 格式的输入 definition
 
     ToolResult:
       type: object
@@ -115,3 +145,26 @@ components:
           example: "text"
         text:
           type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        traceId:
+          type: string
+          description: 全链路追踪 ID
+        status:
+          type: integer
+          description: HTTP 状态码
+        error_code:
+          type: string
+          description: 业务自定义错误码 (如 DEP_0100 代表参数异常)
+        error_msg:
+          type: string
+          description: 业务自定义错误消息 (支持国际化)
+        path:
+          type: string
+          description: 请求路径
+        timestamp:
+          type: string
+          format: date-time
+          description: 错误发生时间

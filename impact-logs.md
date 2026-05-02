@@ -3,6 +3,172 @@
 > 记录每次重大修改对其他工程的潜在影响。
 
 
+
+## [2026-05-01] 引入 WebFlux/WebClient 增强跨服务调用能力
+> 关联决策: [007-webclient-migration-decision.md](file:///Users/pei/projects/docs/architecture/007-webclient-migration-decision.md)
+
+### 修改概述
+在 `ms-java-biz` 中引入了 `WebFlux` 栈，并采用 `WebClient` 作为新的标准化跨服务调用客户端，替代了处于维护模式的 `RestTemplate`。
+- **配置增强**: 引入了支持负载均衡和 JWT 自动透传的 `WebClientConfig`。
+- **依赖升级**: 补全了 `spring-boot-starter-webflux` 和 `spring-cloud-starter-loadbalancer`。
+- **客户端重构**: 将 `PythonAgentClientImpl` 迁移至 `WebClient` 实现，显著提升了对远程异常的解析精度与未来对流式响应（SSE）的支持能力。
+
+### 涉及范围
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-java-biz** | ✅ 增强 | 建立了更现代化、可扩展的 HTTP 客户端基础，为后续 AI 流式特性铺平道路。 |
+| **ms-py-agent** | 🟢 无影响 | 接口协议保持不变，但 Java 侧的调用更加健壮。 |
+
+### 风险等级: 🟢 低
+- `WebClient` 目前以阻塞模式 (`.block()`) 运行以适配现有同步接口，风险受控。
+- `JwtExchangeFilterFunction` 确保了身份认证逻辑的连续性。
+
+### 验证计划
+- [x] 验证 `WebClientConfig` 正常初始化并注入。
+- [x] 验证 `ms-java-biz` 成功调用 `ms-py-agent` 且 Header 中包含 JWT。
+- [x] 验证远程业务错误码（如 `DEP_0400`）被正确解析并透传。
+
+---
+
+## [2026-05-01] 全链路可观测性与错误标准化增强
+> 关联特性: [FE010-standardized-observability-and-error-response.md](file:///Users/pei/projects/docs/features/FE010-standardized-observability-and-error-response.md)
+
+### 修改概述
+增强了 `ms-java-gateway` 的全链路日志可见性与异常排查能力。
+- **请求/响应闭环**: 在 `TraceIdFilter` 中实现了 `【网关请求】` 和 `【网关响应完成】` 日志记录，涵盖了 HTTP 方法、路径、状态码、耗时（ms）以及 Trace-Id。
+- **全链路错误治理**: 遵循“后端报详情，网关仅透传”原则。
+    - **ms-java-biz**: 更新 `ErrorResponse` 增加 `error_code`/`error_msg`，确保业务异常格式化。
+    - **ms-py-agent**: 引入全局异常处理器，统一 Python 侧的异常响应 JSON。
+    - **ms-java-gateway**: 仅作为保底，在网关自身异常（如超时）时提供对齐的错误格式。
+
+### 涉及范围
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-java-gateway** | ✅ 增强 | 显著提升了生产环境下的可观测性，实现了请求链路的完整闭环记录。 |
+| **ms-java-biz** | 🟢 无影响 | 仅作为流量入口层的增强。 |
+| **ms-py-agent** | 🟢 无影响 | 仅作为流量入口层的增强。 |
+
+### 风险等级: 🟢 低
+- 修改仅涉及日志记录逻辑，不影响核心业务转发。
+- 采用非阻塞的 `doFinally` 钩子记录响应日志，性能开销极低。
+
+### 验证计划
+- [x] 验证请求进入时打印 `【网关请求】`。
+- [x] 验证请求结束时打印 `【网关响应完成】` 及其状态码。
+- [x] 验证 5xx 异常发生时输出完整堆栈日志。
+
+---
+
+## 2026-05-01 | 修复 ms-java-biz 与 ms-py-agent 通信及认证失败
+
+### 修改概述
+解决了 `ms-java-biz` 调度 `ms-py-agent` 进行知识库入库时的连通性与身份校验问题。
+- **连通性修复**: 修改了 `ms-py-agent` 的监听配置，将 `HOST` 从 `127.0.0.1` 改为 `0.0.0.0`。
+- **认证透传**: 在 `ms-java-biz` 中实现了 JWT Token 自动透传机制。
+    - **Filter 增强**: `JwtAuthenticationFilter` 开始存储原始 Token。
+    - **Interceptor 引入**: 新增 `JwtTokenInterceptor` 并注册至全局 `RestTemplate`。
+- **经验沉淀**: 建立了详细的 [RCA 文档](file:///Users/pei/projects/docs/incidents/2026-05-01-java-biz-call-py-agent-failed.md)，并同步更新了各工程的 `ai-code-ws.md` 规范。
+
+### 涉及范围
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-py-agent** | ✅ 修复 | 解决了由于 IP 绑定导致的 Connection Refused 问题。 |
+| **ms-java-biz** | ✅ 增强 | 建立了全链路身份传播机制，确保了微服务调用的安全性。 |
+| **ms-java-gateway** | 🟢 无影响 | 仅作为签发者，不参与下游透传逻辑。 |
+
+### 风险等级: 🟢 低
+- 修改涉及配置默认值和新增拦截器。
+- 已在 `ai-code-ws.md` 中固化相关规范，防止未来退化。
+
+### 验证计划
+- [ ] 验证 `ms-py-agent` 绑定地址为 `0.0.0.0`。
+- [ ] 验证 `ms-java-biz` 调用下游接口时，Header 中包含正确的 `Authorization: Bearer <token>`。
+- [ ] 验证知识库入库流程全链路跑通。
+
+---
+
+
+## 2026-05-01 | 修复 Java 后端 500 异常被网关 403 掩盖
+
+### 修改概述
+解决了 `ms-java-biz` 发生 500 异常时被网关返回 403 Forbidden 掩盖真实错误的问题。
+- **安全配置**: 在 `ms-java-biz` 的 `application.yaml` 中将 `/error` 路径加入安全白名单。
+- **异常捕获**: 引入了 `GlobalExceptionHandler` (@RestControllerAdvice)，确保异常发生时直接返回标准化 JSON，避免触发 Spring Boot 默认的 `/error` 转发逻辑。
+- **标准化**: 定义了 `ErrorResponse` DTO，保持后端错误响应格式与网关一致（包含 `traceId`, `status`, `message` 等）。
+- **事故复盘**: 建立了详细的 [RCA 文档](file:///Users/pei/projects/docs/incidents/2026-05-01-gateway-403-masking.md)。
+
+### 涉及范围
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-java-biz** | ✅ 修复 | 完善了异常处理机制，提升了接口排障的可见性。 |
+| **ms-java-gateway** | 🟢 无影响 | 仅作为透明代理转发后端响应。 |
+
+### 风险等级: 🟢 低
+- 修改主要为增量代码（异常处理器）和配置补充。
+- `GlobalExceptionHandler` 提升了系统的健壮性。
+
+### 验证计划
+- [ ] 验证后端发生异常时不再返回 403。
+- [ ] 验证返回的 JSON 结构包含正确的 `traceId` 和错误信息。
+
+---
+
+## 2026-05-01 | KnowledgeEmbeddingComponent 重构与子组件化
+
+### 修改概述
+为了提升代码可维护性并降低模板复杂度，对 `ms-ng-view` 的 `KnowledgeEmbeddingComponent` 进行了深度重构。
+- **组件拆分**: 将 5 步 RAG 配置流程（数据准备、索引构建、检索优化、生成集成、系统评估）拆分为独立的 KL 系列子组件（`KlStep...`）。
+- **通信接口**: 建立了基于 Angular Signals (Input) 和 EventEmitter (Output) 的触发接口，确保子组件配置实时同步至主逻辑。
+- **UI 增强**: 引入了统一的帮助图标 (`?`) 以解释技术含义，并为已完成步骤增加了对号 (**Checkmark**) 状态显示。
+- **文档更新**: 同步更新了特性定义文档 `FE009-knowledge-rag-workflow.md`。
+
+### 涉及范围
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-ng-view** | ✅ 核心重构 | 显著精简了主模板，建立了模块化的配置工作流，提升了前端代码的健壮性。 |
+
+### 风险等级: 🟢 低
+- 修改仅涉及前端 UI 组件层，不改变现有的后端 RAG 协议。
+- 逻辑已通过手动验证，信号流转正常。
+
+### 验证计划
+- [x] 验证 5 个步骤的子组件渲染正常，切换流畅。
+- [x] 验证修改子组件参数后，点击“保存并构建索引”生成的 Payload 包含最新值。
+- [x] 验证帮助图标悬停显示正确信息。
+- [x] 验证步骤完成后的对号状态显示。
+
+---
+
+## 2026-04-30 | 全局顶栏重构、SSO 逻辑优化与登出修复
+
+### 修改概述
+完成了 `ms-ng-view` 全局顶栏的重构，统一了 Account 管理跳转逻辑，并修复了网关侧的登出 404 异常。
+- **组件归并**: 提取了统一的 `MsHeaderComponent`，支持黑名单路由控制、国际化切换及侧边栏状态共享。
+- **SSO 修复**: 将 Casdoor 账号管理跳转修改为通过 `/login` 接口中转，强制触发 SSO 会话检查，解决了无法自动登录的问题。
+- **登出治理**: 修复了 `ms-java-gateway` 将 `/logout` 误放入白名单导致的 404 问题。支持了 GET 登出、JWT Cookie 清理及前端重定向。
+- **配置化**: 引入了 `URLConfig.EXTERNAL` 和 `VITE_CASDOOR_URL` 环境变量，消除了代码中的硬编码 URL。
+
+### 涉及范围
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-ng-view** | ✅ 核心重构 | UI 布局统一，外部链接中心化，移除了大量重复的 Header 逻辑。 |
+| **ms-java-gateway** | ✅ 修复 | 完善了登出全链路，支持了无状态 JWT 的主动注销。 |
+
+### 风险等级: 🟢 低
+- 顶栏切换采用 `computed` 信号驱动，性能优异。
+- 网关登出逻辑仅针对 `/logout` 路径，不影响其他 API 路由。
+
+### 验证计划
+- [x] 验证点击“账号管理”能通过 Casdoor SSO 免密进入设置页。
+- [x] 验证点击“退出”能正确清理 Cookie 并返回落地页（不再 404）。
+- [x] 验证落地页 (`/landing`) 正确隐藏了顶栏。
+
 ---
 
 ## 2026-04-30 | 全局数据库命名规范化重构 (Standardizing DB Naming)

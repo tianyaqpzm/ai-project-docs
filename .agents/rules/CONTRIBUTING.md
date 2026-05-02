@@ -8,7 +8,7 @@ trigger: always_on
   文档架构与路径定义所有跨工程的逻辑必须遵循“全局大脑”原则，文档统一存放于工作区根目录。
 |文档类型|输出路径(自根目录起)|描述|
 |---|---|---|
-|API定义|/docs/api-contracts/{ProjectName-FeatureName-Version}.yaml|记录子工程的业务API接口文档,需包含API接口说明、入参出参、异常情况，OpenAPI 3.0.0 (YAML 格式)命名举例：文件名称MsJavaBiz-PregramerRecipes-v1.yaml,API名称/rest/dark/v1/knowledge/topics|
+|API定义|/docs/api-contracts/{ProjectName-FeatureName-Version}.yaml|记录子工程的业务API接口文档,需包含API接口说明、入参出参、异常情况，OpenAPI 3.0.0 (YAML 格式)，使用skills@api-design-principles 来命名举例：文件名称MsJavaBiz-PregramerRecipes-v1.yaml,API名称/rest/dark/v1/knowledge/topics|
 |特性定义|/docs/features/{feature-name}.md|记录特性的业务逻辑、涉及的子工程、接口变动|
 |问题复盘|/docs/incidents/{date}-{issue}.md|记录线上故障或重大 Bug 的根因分析（RCA）|
 |架构决策|/docs/architecture/{id}-decision.md|记录技术选型、架构调整的决策过程（ADR）|

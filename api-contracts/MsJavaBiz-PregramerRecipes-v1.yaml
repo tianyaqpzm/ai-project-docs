@@ -22,6 +22,10 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/RecipeDTO'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /recipes/favorite:
     post:
@@ -49,8 +53,34 @@ paths:
                 properties:
                   success:
                     type: boolean
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
 components:
+  responses:
+    BadRequestError:
+      description: 参数异常 (DEP_0100)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnauthorizedError:
+      description: 未授权 (JWT 校验失败)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: 系统内部错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
   schemas:
     RecipeDTO:
       type: object
@@ -74,3 +104,26 @@ components:
         isFavorite:
           type: boolean
           example: false
+
+    ErrorResponse:
+      type: object
+      properties:
+        traceId:
+          type: string
+          description: 全链路追踪 ID
+        status:
+          type: integer
+          description: HTTP 状态码
+        error_code:
+          type: string
+          description: 业务自定义错误码 (如 DEP_0100 代表参数异常)
+        error_msg:
+          type: string
+          description: 业务自定义错误消息 (支持国际化)
+        path:
+          type: string
+          description: 请求路径
+        timestamp:
+          type: string
+          format: date-time
+          description: 错误发生时间

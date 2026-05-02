@@ -29,6 +29,12 @@ paths:
               schema:
                 type: string
                 example: "data: {\"content\": \"你好\"}\n\n"
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /rest/kb/v1/documents/ingest:
     post:
@@ -54,6 +60,12 @@ paths:
                     type: string
                   metrics:
                     type: object
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /rest/kb/v1/retrieve:
     post:
@@ -74,6 +86,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RetrievalResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /rest/kb/v1/ask:
     post:
@@ -97,8 +115,34 @@ paths:
             application/json:
               schema:
                 type: object
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
 components:
+  responses:
+    BadRequestError:
+      description: 参数异常 (DEP_0100)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnauthorizedError:
+      description: 未授权 (JWT 校验失败)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: 系统内部错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
   schemas:
     ChatRequest:
       type: object
@@ -127,12 +171,62 @@ components:
           default: default
         chunk_size:
           type: integer
+          description: 文本分块大小
         chunk_overlap:
           type: integer
+          description: 片段重叠字符数
         separators:
           type: array
           items:
             type: string
+          description: 文本切割偏好符号
+        embedding_model:
+          type: string
+          description: Embedding 模型
+        vector_store:
+          type: string
+          description: 向量数据库类型
+        top_k:
+          type: integer
+          default: 5
+          description: 检索结果数
+        score_threshold:
+          type: number
+          format: float
+          description: 评分阈值
+        enable_hybrid_search:
+          type: boolean
+          default: true
+          description: 是否启用混合检索
+        alpha_weight:
+          type: number
+          format: float
+          default: 0.5
+          description: 权重比例
+        generation_model:
+          type: string
+          description: 生成模型名称
+        temperature:
+          type: number
+          format: float
+          default: 0.7
+          description: 采样温度
+        max_tokens:
+          type: integer
+          default: 1000
+          description: 最大生成长度
+        system_prompt:
+          type: string
+          description: 系统提示词
+        enable_evaluation:
+          type: boolean
+          default: false
+          description: 是否开启自动评估
+        evaluation_metrics:
+          type: array
+          items:
+            type: string
+          description: 评估指标列表
       required:
         - file_path
         - category
@@ -181,3 +275,26 @@ components:
           default: true
       required:
         - query
+
+    ErrorResponse:
+      type: object
+      properties:
+        traceId:
+          type: string
+          description: 全链路追踪 ID
+        status:
+          type: integer
+          description: HTTP 状态码
+        error_code:
+          type: string
+          description: 业务自定义错误码 (如 DEP_0100 代表参数异常)
+        error_msg:
+          type: string
+          description: 业务自定义错误消息 (支持国际化)
+        path:
+          type: string
+          description: 请求路径
+        timestamp:
+          type: string
+          format: date-time
+          description: 错误发生时间
