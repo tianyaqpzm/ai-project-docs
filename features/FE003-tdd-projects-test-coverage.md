@@ -107,7 +107,25 @@
 | LK-02 | POST /topics → 创建主题 | 自动生成 ID |
 | LK-03 | DELETE /topics/{id} → 级联清理文档 | 主题和关联文档同时删除 |
 
+### 测试基础设施 (Test Infrastructure)
+
+为了平衡本地开发效率与 CI 环境的真实性，采用了双重数据库测试策略：
+
+| 维度 | 本地测试 (Local) | 线上测试 (CI) |
+|------|-----------------|--------------|
+| **数据库** | H2 (Memory Mode) | Testcontainers (PostgreSQL 16) |
+| **Profile** | `test` (默认) | `ci` |
+| **Flyway** | 禁用 (通过 `spring.flyway.enabled: false`) | 启用 (执行完整迁移脚本) |
+| **优势** | 无需 Docker，启动极快 | 100% 还原生产环境 Schema，验证 SQL 兼容性 |
+
+**关键实现点**:
+- **动态开关**: `FlywayConfig.java` 引入 `enabled` 属性，支持在应用就绪后根据配置决定是否执行 `migrate()`。
+- **环境隔离**: `application-ci.yml` 独立封装 Testcontainers 驱动与 URL 配置。
+- **自动化**: GitHub Actions 工作流自动注入 `-Dspring.profiles.active=ci`。
+
 ---
+
+> 如果本地使用 H2 且开启 Flyway，可能会因为 H2 不完全兼容 PostgreSQL 的迁移脚本（如 JSONB 或 pgvector）而导致测试启动失败。
 
 ## 🟡 工程三：ms-py-agent (Python / FastAPI)
 
