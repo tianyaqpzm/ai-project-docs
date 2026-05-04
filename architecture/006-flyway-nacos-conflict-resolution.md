@@ -7,6 +7,8 @@
 3.  **版本不兼容**：Flyway 9.x 对 PostgreSQL 16 的协议支持不完善。
 
 详见根因分析：[20260428-flyway-nacos-connection-reset](../incidents/20260428-flyway-nacos-connection-reset.md)
+在微服务启动期间，Nacos 的上下文刷新与 Flyway 的数据库锁机制存在冲突，导致远程连接被重置，产生 `EOFException`。
+详见根因分析：[RAG-20260428-连接重置](../incidents/20260428-flyway-nacos-connection-reset.md)
 
 ## 可选方案对比 (Alternatives Considered)
 
