@@ -1,0 +1,95 @@
+openapi: 3.0.0
+info:
+  title: ms-java-biz Prompt Management API
+  description: 动态 Prompt 模板与版本管理接口文档
+  version: 1.0.0
+
+servers:
+  - url: /api/business
+    description: 业务服务 API 根路径
+
+paths:
+  /rest/biz/v1/prompts/{slug}:
+    get:
+      summary: 获取生效状态的 Prompt 模板与版本配置
+      description: 根据 slug 获取当前标记为 active 的 Prompt 详情，包含内容、变量定义及模型参数。
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          description: Prompt 模板的业务唯一标识
+          schema:
+            type: string
+            example: "default_kb_assistant"
+      responses:
+        '200':
+          description: 成功获取 Prompt 详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromptResponse'
+        '400':
+          description: 参数异常 (DEP_0100) - 例如 slug 不存在或没有生效版本
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 未授权 (JWT 校验失败)
+        '500':
+          description: 系统内部错误
+
+components:
+  schemas:
+    PromptResponse:
+      type: object
+      properties:
+        slug:
+          type: string
+          description: 业务唯一标识
+          example: "default_kb_assistant"
+        versionTag:
+          type: string
+          description: 版本号
+          example: "v1.0.0"
+        content:
+          type: string
+          description: Prompt 原文内容（含 {{context}} 等占位符）
+          example: "你是一位专业的知识库助手... Context: {{context}}"
+        modelConfig:
+          type: object
+          description: 模型参数配置 (JSON)
+          example:
+            model: "gemini-1.5-flash"
+            temperature: 0.3
+        variables:
+          type: array
+          items:
+            type: string
+          description: 变量定义列表
+          example: ["context"]
+
+    ErrorResponse:
+      type: object
+      properties:
+        traceId:
+          type: string
+          description: 全链路追踪 ID
+        status:
+          type: integer
+          description: HTTP 状态码
+        error_code:
+          type: string
+          description: 业务自定义错误码 (如 DEP_0100 代表参数异常)
+          example: "DEP_0100"
+        error_msg:
+          type: string
+          description: 业务自定义错误消息
+          example: "参数异常：default_kb_assistant不存在"
+        path:
+          type: string
+          description: 请求路径
+        timestamp:
+          type: string
+          format: date-time
+          description: 错误发生时间

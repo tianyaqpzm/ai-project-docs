@@ -3,6 +3,332 @@
 > 记录每次重大修改对其他工程的潜在影响。
 
 
+## [2026-05-03] 聊天页面引入 Markdown 渲染支持
+> 关联特性: [FE011-chat-markdown-rendering.md](file:///Users/pei/projects/docs/features/FE011-chat-markdown-rendering.md)
+
+### 修改概述
+为 `ms-ng-view` 的聊天页面集成了 `ngx-markdown` 引擎，解决了 AI 返回内容缺乏排版的问题。
+- **核心集成**: 安装并配置了 `ngx-markdown` 及其解析器 `marked`，在 `main.ts` 中完成了全局提供者注册。
+- **渲染升级**: 在 `ChatComponent` 中使用 `<markdown>` 动态组件替换了原有的插值表达式，支持流式内容的实时排版。
+- **样式补全**: 在 CSS 中手动补全了针对标题、代码块、列表、表格等元素的样式定义，并完美适配了系统的深色/浅色主题。
+
+### 涉及范围
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-ng-view** | ✅ 增强 | 显著提升了 AI 回复的可读性，支持了代码块、表格等复杂内容的排版。 |
+| **ms-py-agent** | 🟢 无影响 | 仅作为前端展示层的增强，后端下发的 Markdown 文本现在能被正确解析。 |
+| **ms-java-biz** | 🟢 无影响 | 业务逻辑层无变动。 |
+
+### 风险等级: 🟢 低
+- `ngx-markdown` 采用成熟的 `marked` 引擎，性能稳定。
+- 修改仅限于前端 UI 展示层，不涉及核心业务逻辑。
+
+### 验证计划
+- [x] 验证 `npm install` 成功，依赖关系正确。
+- [x] 验证包含复杂 Markdown（代码块、表格、标题）的消息渲染正常。
+- [x] 验证深色模式下代码块背景与文字颜色清晰。
+
+
+## [2026-05-02] Chat 页面交互增强与流式请求取消功能落地
+
+### 修改概述
+针对 `ms-ng-view` 的聊天体验进行了深度优化，实现了输入防抖、状态感知图标切换以及核心的请求取消功能。
+- **输入优化**: 在聊天输入框引入 300ms 防抖机制，并采用“实时读取+延时同步”方案，解决了输入抖动问题且不影响发送动作。
+- **交互闭环**:
+    - 发送按钮图标随 AI 生成状态动态切换（`send` ↔ `pause`）。
+    - 实现了 **流式请求取消** 逻辑：通过在 `ChatUseCase` 中管理 RxJS 订阅，允许用户点击“暂停”图标中止当前 AI 回复的生成，有效节省了后端 Token 消耗和网络资源。
+
+### 涉及范围
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-ng-view** | ✅ 增强 | 显著提升了聊天页面的交互流畅度，提供了手动干预 AI 生成的能力。 |
+| **ms-java-gateway** | 🟢 无影响 | 仅作为透明流式代理，客户端主动断连时会自动关闭对应的后端连接。 |
+| **ms-java-biz** | 🟢 无影响 | 业务逻辑层无需调整。 |
+
+### 风险等级: 🟢 低
+- 修改仅涉及前端 UI 组件与 Use Case 层的状态管理。
+- 取消逻辑采用 RxJS 标准的 `unsubscribe`，符合响应式编程规范。
+
+### 验证计划
+- [x] 验证 `npm run build` 成功。
+- [x] 验证输入框在快速输入时保持响应，且 Enter 键能即时发送内容。
+- [x] 验证 AI 生成过程中点击“暂停”图标，控制台 Network 面板显示请求 `Canceled`，且回复停止增加。
+
+---
+
+## [2026-05-01] 引入 WebFlux/WebClient 增强跨服务调用能力
+> 关联决策: [007-webclient-migration-decision.md](file:///Users/pei/projects/docs/architecture/007-webclient-migration-decision.md)
+
+### 修改概述
+在 `ms-java-biz` 中引入了 `WebFlux` 栈，并采用 `WebClient` 作为新的标准化跨服务调用客户端，替代了处于维护模式的 `RestTemplate`。
+- **配置增强**: 引入了支持负载均衡和 JWT 自动透传的 `WebClientConfig`。
+- **依赖升级**: 补全了 `spring-boot-starter-webflux` 和 `spring-cloud-starter-loadbalancer`。
+- **客户端重构**: 将 `PythonAgentClientImpl` 迁移至 `WebClient` 实现，显著提升了对远程异常的解析精度与未来对流式响应（SSE）的支持能力。
+
+### 涉及范围
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-java-biz** | ✅ 增强 | 建立了更现代化、可扩展的 HTTP 客户端基础，为后续 AI 流式特性铺平道路。 |
+| **ms-py-agent** | 🟢 无影响 | 接口协议保持不变，但 Java 侧的调用更加健壮。 |
+
+### 风险等级: 🟢 低
+- `WebClient` 目前以阻塞模式 (`.block()`) 运行以适配现有同步接口，风险受控。
+- `JwtExchangeFilterFunction` 确保了身份认证逻辑的连续性。
+
+### 验证计划
+- [x] 验证 `WebClientConfig` 正常初始化并注入。
+- [x] 验证 `ms-java-biz` 成功调用 `ms-py-agent` 且 Header 中包含 JWT。
+- [x] 验证远程业务错误码（如 `DEP_0400`）被正确解析并透传。
+
+---
+
+## [2026-05-01] 全链路可观测性与错误标准化增强
+> 关联特性: [FE010-standardized-observability-and-error-response.md](file:///Users/pei/projects/docs/features/FE010-standardized-observability-and-error-response.md)
+
+### 修改概述
+增强了 `ms-java-gateway` 的全链路日志可见性与异常排查能力。
+- **请求/响应闭环**: 在 `TraceIdFilter` 中实现了 `【网关请求】` 和 `【网关响应完成】` 日志记录，涵盖了 HTTP 方法、路径、状态码、耗时（ms）以及 Trace-Id。
+- **全链路错误治理**: 遵循“后端报详情，网关仅透传”原则。
+    - **ms-java-biz**: 更新 `ErrorResponse` 增加 `error_code`/`error_msg`，确保业务异常格式化。
+    - **ms-py-agent**: 引入全局异常处理器，统一 Python 侧的异常响应 JSON。
+    - **ms-java-gateway**: 仅作为保底，在网关自身异常（如超时）时提供对齐的错误格式。
+
+### 涉及范围
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-java-gateway** | ✅ 增强 | 显著提升了生产环境下的可观测性，实现了请求链路的完整闭环记录。 |
+| **ms-java-biz** | 🟢 无影响 | 仅作为流量入口层的增强。 |
+| **ms-py-agent** | 🟢 无影响 | 仅作为流量入口层的增强。 |
+
+### 风险等级: 🟢 低
+- 修改仅涉及日志记录逻辑，不影响核心业务转发。
+- 采用非阻塞的 `doFinally` 钩子记录响应日志，性能开销极低。
+
+### 验证计划
+- [x] 验证请求进入时打印 `【网关请求】`。
+- [x] 验证请求结束时打印 `【网关响应完成】` 及其状态码。
+- [x] 验证 5xx 异常发生时输出完整堆栈日志。
+
+---
+
+## 2026-05-01 | 修复 ms-java-biz 与 ms-py-agent 通信及认证失败
+
+### 修改概述
+解决了 `ms-java-biz` 调度 `ms-py-agent` 进行知识库入库时的连通性与身份校验问题。
+- **连通性修复**: 修改了 `ms-py-agent` 的监听配置，将 `HOST` 从 `127.0.0.1` 改为 `0.0.0.0`。
+- **认证透传**: 在 `ms-java-biz` 中实现了 JWT Token 自动透传机制。
+    - **Filter 增强**: `JwtAuthenticationFilter` 开始存储原始 Token。
+    - **Interceptor 引入**: 新增 `JwtTokenInterceptor` 并注册至全局 `RestTemplate`。
+- **经验沉淀**: 建立了详细的 [RCA 文档](file:///Users/pei/projects/docs/incidents/2026-05-01-java-biz-call-py-agent-failed.md)，并同步更新了各工程的 `ai-code-ws.md` 规范。
+
+### 涉及范围
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-py-agent** | ✅ 修复 | 解决了由于 IP 绑定导致的 Connection Refused 问题。 |
+| **ms-java-biz** | ✅ 增强 | 建立了全链路身份传播机制，确保了微服务调用的安全性。 |
+| **ms-java-gateway** | 🟢 无影响 | 仅作为签发者，不参与下游透传逻辑。 |
+
+### 风险等级: 🟢 低
+- 修改涉及配置默认值和新增拦截器。
+- 已在 `ai-code-ws.md` 中固化相关规范，防止未来退化。
+
+### 验证计划
+- [ ] 验证 `ms-py-agent` 绑定地址为 `0.0.0.0`。
+- [ ] 验证 `ms-java-biz` 调用下游接口时，Header 中包含正确的 `Authorization: Bearer <token>`。
+- [ ] 验证知识库入库流程全链路跑通。
+
+---
+
+
+## 2026-05-01 | 修复 Java 后端 500 异常被网关 403 掩盖
+
+### 修改概述
+解决了 `ms-java-biz` 发生 500 异常时被网关返回 403 Forbidden 掩盖真实错误的问题。
+- **安全配置**: 在 `ms-java-biz` 的 `application.yaml` 中将 `/error` 路径加入安全白名单。
+- **异常捕获**: 引入了 `GlobalExceptionHandler` (@RestControllerAdvice)，确保异常发生时直接返回标准化 JSON，避免触发 Spring Boot 默认的 `/error` 转发逻辑。
+- **标准化**: 定义了 `ErrorResponse` DTO，保持后端错误响应格式与网关一致（包含 `traceId`, `status`, `message` 等）。
+- **事故复盘**: 建立了详细的 [RCA 文档](file:///Users/pei/projects/docs/incidents/2026-05-01-gateway-403-masking.md)。
+
+### 涉及范围
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-java-biz** | ✅ 修复 | 完善了异常处理机制，提升了接口排障的可见性。 |
+| **ms-java-gateway** | 🟢 无影响 | 仅作为透明代理转发后端响应。 |
+
+### 风险等级: 🟢 低
+- 修改主要为增量代码（异常处理器）和配置补充。
+- `GlobalExceptionHandler` 提升了系统的健壮性。
+
+### 验证计划
+- [ ] 验证后端发生异常时不再返回 403。
+- [ ] 验证返回的 JSON 结构包含正确的 `traceId` 和错误信息。
+
+---
+
+## 2026-05-01 | KnowledgeEmbeddingComponent 重构与子组件化
+
+### 修改概述
+为了提升代码可维护性并降低模板复杂度，对 `ms-ng-view` 的 `KnowledgeEmbeddingComponent` 进行了深度重构。
+- **组件拆分**: 将 5 步 RAG 配置流程（数据准备、索引构建、检索优化、生成集成、系统评估）拆分为独立的 KL 系列子组件（`KlStep...`）。
+- **通信接口**: 建立了基于 Angular Signals (Input) 和 EventEmitter (Output) 的触发接口，确保子组件配置实时同步至主逻辑。
+- **UI 增强**: 引入了统一的帮助图标 (`?`) 以解释技术含义，并为已完成步骤增加了对号 (**Checkmark**) 状态显示。
+- **文档更新**: 同步更新了特性定义文档 `FE009-knowledge-rag-workflow.md`。
+
+### 涉及范围
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-ng-view** | ✅ 核心重构 | 显著精简了主模板，建立了模块化的配置工作流，提升了前端代码的健壮性。 |
+
+### 风险等级: 🟢 低
+- 修改仅涉及前端 UI 组件层，不改变现有的后端 RAG 协议。
+- 逻辑已通过手动验证，信号流转正常。
+
+### 验证计划
+- [x] 验证 5 个步骤的子组件渲染正常，切换流畅。
+- [x] 验证修改子组件参数后，点击“保存并构建索引”生成的 Payload 包含最新值。
+- [x] 验证帮助图标悬停显示正确信息。
+- [x] 验证步骤完成后的对号状态显示。
+
+---
+
+## 2026-04-30 | 全局顶栏重构、SSO 逻辑优化与登出修复
+
+### 修改概述
+完成了 `ms-ng-view` 全局顶栏的重构，统一了 Account 管理跳转逻辑，并修复了网关侧的登出 404 异常。
+- **组件归并**: 提取了统一的 `MsHeaderComponent`，支持黑名单路由控制、国际化切换及侧边栏状态共享。
+- **SSO 修复**: 将 Casdoor 账号管理跳转修改为通过 `/login` 接口中转，强制触发 SSO 会话检查，解决了无法自动登录的问题。
+- **登出治理**: 修复了 `ms-java-gateway` 将 `/logout` 误放入白名单导致的 404 问题。支持了 GET 登出、JWT Cookie 清理及前端重定向。
+- **配置化**: 引入了 `URLConfig.EXTERNAL` 和 `VITE_CASDOOR_URL` 环境变量，消除了代码中的硬编码 URL。
+
+### 涉及范围
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-ng-view** | ✅ 核心重构 | UI 布局统一，外部链接中心化，移除了大量重复的 Header 逻辑。 |
+| **ms-java-gateway** | ✅ 修复 | 完善了登出全链路，支持了无状态 JWT 的主动注销。 |
+
+### 风险等级: 🟢 低
+- 顶栏切换采用 `computed` 信号驱动，性能优异。
+- 网关登出逻辑仅针对 `/logout` 路径，不影响其他 API 路由。
+
+### 验证计划
+- [x] 验证点击“账号管理”能通过 Casdoor SSO 免密进入设置页。
+- [x] 验证点击“退出”能正确清理 Cookie 并返回落地页（不再 404）。
+- [x] 验证落地页 (`/landing`) 正确隐藏了顶栏。
+
+---
+
+## 2026-04-30 | 全局数据库命名规范化重构 (Standardizing DB Naming)
+
+### 修改概述
+为了对齐业界主流开发规范（如阿里 Java 开发手册），对 `ms-java-biz` 的数据库表命名进行了全局重构。
+- **规范制定**: 在 `ai-code-ws.md` 中确立了：`ms_` 前缀、单数命名、`TIMESTAMPTZ` 时区支持以及 `id` 统一主键名等准则。
+- **存量重构**: 通过 Flyway `V1.4` 脚本对 4 张历史表（`chat_messages` 等）进行了更名，并同步更新了 PostgreSQL 触发器函数。
+- **代码适配**: 全量更新了 Java 层持久化对象（DO）的 `@TableName` 映射。
+
+### 涉及范围
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-java-biz** | 🟠 核心重构 | 数据库 Schema 变更及实体类映射调整，涉及核心持久层。 |
+| **ms-ng-view** | 🟢 无影响 | 数据库更名对前端透明，且 Java Entity 属性名未变，无需适配。 |
+| **ms-py-agent** | 🟢 无影响 | Python Agent 仅通过 Java 接口访问数据，不直接依赖数据库表名。 |
+
+### 风险等级: 🟡 中
+- 数据库表更名属于重大变更，需确保 Flyway 迁移脚本在各环境执行成功。
+- 已同步更新关联的触发器函数，降低了数据同步失败的风险。
+
+### 验证计划
+- [x] 验证 Flyway `V1.4` 迁移脚本执行成功。
+- [x] 验证聊天会话同步触发器在表更名后依然生效。
+- [x] 验证知识库搜索与管理功能正常。
+
+---
+
+## 2026-04-30 | AI 美食助手 (AI Food Assistant) 特性上线
+
+### 修改概述
+实现了高度集成的 AI 美食助手功能，包括前端交互门户、后端业务数据支持以及 Agent 专家人格注入。
+- **前端门户**: 在聊天首页引入 `CookPortalComponent`，提供美食分类导航与菜谱推荐。
+- **人格注入**: 在 `ms-py-agent` 中实现了基于 `topic_id` 的专家人格切换，AI 会以“中餐大厨”身份提供服务。
+- **数据支持**: 在 `ms-java-biz` 中通过 Flyway `V1.3` 预置了菜谱知识库主题及业务表结构。
+- **交互优化**: 实现了点击分类/菜谱自动关联知识库并即时发送消息的闭环体验。
+
+### 涉及范围
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-ng-view** | ✅ 特性集成 | 新增美食助手模块，重构了 Suggesion 区域，逻辑解耦。 |
+| **ms-java-biz** | ✅ 数据支持 | 数据库 Schema 升级，新增菜谱知识库入口。 |
+| **ms-py-agent** | ✅ 能力增强 | Agent Graph 升级，支持主题感知的专家人格与 RAG 增强。 |
+
+### 风险等级: 🟢 低
+- 该特性为增量开发，不影响现有通用聊天逻辑。
+- 采用组件化设计，对原有 `ChatComponent` 的侵入性极低。
+
+### 验证计划
+- [x] 验证点击“今天吃什么”后，知识库自动切换为“菜谱”。
+- [x] 验证选择分类后自动触发对话并显示“大厨”回复。
+- [x] 验证数据库迁移脚本 `V1.3` 执行成功。
+
+---
+
+## 2026-04-30 | ms-java-biz 默认安全密码生成修复
+
+### 修改概述
+解决了 `ms-java-biz` 启动时因缺少 `UserDetailsService` 导致的 Spring Boot 自动生成随机安全密码的问题。
+- **配置优化**: 在 `SecurityConfig.java` 中显式定义了空的 `UserDetailsService` Bean，抑制了控制台的 `Using generated security password` 日志。
+- **问题复盘**: 建立了 [RCA: ms-java-biz 启动时产生生成的安全密码日志](file:///Users/pei/projects/docs/incidents/2026-04-30-spring-security-generated-password.md)。
+
+### 触发原因
+项目引入了安全模块但未提供用户源，触发了 Spring Boot 的启动兜底行为。
+
+### 影响评估
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-java-biz** | ✅ 优化 | 净化了启动日志，明确了无状态安全意图，不影响现有 JWT 认证流程。 |
+
+### 风险等级: 🟢 低
+- 仅涉及安全配置的显式声明，不改变任何认证逻辑。
+
+### 验证计划
+- [ ] 验证 `ms-java-biz` 启动日志中不再出现随机密码提示。
+
+## 2026-04-29 | ms-java-gateway Nacos 连接修复与属性绑定健壮性增强
+
+### 修改概述
+解决了 `ms-java-gateway` 在 `dev` 环境下无法连接 Nacos 命名空间以及由于配置缺失导致的 OAuth2 属性绑定崩溃问题。
+- **配置修复**: 在 `bootstrap.yml` 中补全了 `namespace` 配置，对齐了 `ms-java-biz` 的 Nacos 连接规范。
+- **健壮性优化**: 在 `application.yml` 中为 OAuth2 Casdoor Provider 引入了占位符 `issuer-uri`，防止因配置中心未加载导致的服务直接崩溃。
+- **问题复盘**: 建立了 [RCA: ms-java-gateway 连接 Nacos 失败及 OAuth2 属性绑定崩溃](file:///Users/pei/projects/docs/incidents/20260429-nacos-connection-failure.md)。
+
+### 触发原因
+1. **配置疏漏**: `ms-java-gateway` 的 Bootstrap 阶段未感知环境变量中的 `NACOS_NAMESPACE`。
+2. **Namespace ID 疑云**: 观察到 `ms-java-biz` 同样无法获取配置，怀疑 Nacos 命名空间应使用 **UUID (ID)** 而非名称。
+
+### 影响评估
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-java-gateway** | ✅ 修复 | 恢复了配置中心连接能力，解决了启动崩溃 Bug。 |
+| **ms-java-biz** | ⚪ 潜在关联 | 确认了命名空间配置的通用规范，建议同步检查 Namespace ID。 |
+
+### 风险等级: 🟢 低
+- 仅涉及配置引导逻辑，不影响核心路由转发业务。
+- 引入占位符增加了系统的容错性。
+
+### 验证计划
+- [x] 验证 `ms-java-gateway` 启动不再报 `ConverterNotFoundException`。
+- [ ] 检查 Nacos 确认 Namespace ID 并更新 `launch.json`（待用户执行）。
+
 ---
 
 ## 2026-04-28 | ms-java-biz 聊天会话同步架构优化与 Flyway 启动修复

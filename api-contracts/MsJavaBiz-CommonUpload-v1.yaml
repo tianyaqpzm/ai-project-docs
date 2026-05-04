@@ -1,0 +1,103 @@
+openapi: 3.0.0
+info:
+  title: MsJavaBiz Common Upload API
+  description: 通用文件上传接口文档，支持根据业务类型路由不同的上传策略。
+  version: 1.0.0
+
+servers:
+  - url: /
+    description: 网关根路径
+
+paths:
+  /rest/dark/v1/upload/{type}:
+    post:
+      tags:
+        - Common Upload
+      summary: 按照业务类型上传文件
+      description: 根据路径参数 `type`（如 knowledge）决定文件存储与处理策略。
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 业务类型 (e.g., knowledge)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 待上传的文件
+                extraParams:
+                  type: object
+                  description: 额外的业务参数
+      responses:
+        '200':
+          description: 上传成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  url:
+                    type: string
+                  status:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  responses:
+    BadRequestError:
+      description: 参数异常 (DEP_0100)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnauthorizedError:
+      description: 未授权 (JWT 校验失败)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: 系统内部错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        traceId:
+          type: string
+          description: 全链路追踪 ID
+        status:
+          type: integer
+          description: HTTP 状态码
+        error_code:
+          type: string
+          description: 业务自定义错误码 (如 DEP_0100 代表参数异常)
+        error_msg:
+          type: string
+          description: 业务自定义错误消息 (支持国际化)
+        path:
+          type: string
+          description: 请求路径
+        timestamp:
+          type: string
+          format: date-time
+          description: 错误发生时间

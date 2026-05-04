@@ -1,0 +1,102 @@
+openapi: 3.0.0
+info:
+  title: MsJavaBiz User Console API
+  description: 用户信息与身份识别接口文档
+  version: 1.0.0
+
+servers:
+  - url: /
+    description: 网关根路径
+
+paths:
+  /rest/dark/v1/user/me:
+    get:
+      tags:
+        - User
+      summary: 获取当前登录用户信息
+      description: 从网关透传的请求头中提取并返回当前登录用户的信息。
+      parameters:
+        - name: X-User-Id
+          in: header
+          required: false
+          schema:
+            type: string
+          description: 用户 ID (网关注入)
+        - name: X-User-Name
+          in: header
+          required: false
+          schema:
+            type: string
+          description: 用户名 (网关注入，URL 编码)
+        - name: X-User-Avatar
+          in: header
+          required: false
+          schema:
+            type: string
+          description: 用户头像 URL (网关注入)
+      responses:
+        '200':
+          description: 成功返回用户信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDto'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  responses:
+    BadRequestError:
+      description: 参数异常 (DEP_0100)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnauthorizedError:
+      description: 未授权 (JWT 校验失败)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: 系统内部错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    UserDto:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        avatar:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        traceId:
+          type: string
+          description: 全链路追踪 ID
+        status:
+          type: integer
+          description: HTTP 状态码
+        error_code:
+          type: string
+          description: 业务自定义错误码 (如 DEP_0100 代表参数异常)
+        error_msg:
+          type: string
+          description: 业务自定义错误消息 (支持国际化)
+        path:
+          type: string
+          description: 请求路径
+        timestamp:
+          type: string
+          format: date-time
+          description: 错误发生时间
