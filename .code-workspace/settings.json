@@ -1,0 +1,13 @@
+{
+  "jest.disabledWorkspaceFolders": [
+    "docs",
+    "api-contracts",
+    "architecture",
+    "features",
+    "ms-java-gateway",
+    "ms-java-biz"
+  ],
+  "jest.nodeEnv": {
+    "PATH": "/Users/pei/.nvm/versions/node/v20.19.4/bin"
+  }
+}

@@ -43,3 +43,31 @@
 
 ## 结论
 虽然 Cookie 存储增加了少量的代码复杂性，但它为微服务网关提供了必要的无状态特性，彻底解决了由于 Session 不一致导致的登录链路中断问题，符合“零业务逻辑、高可用基础设施”的网关设计原则。同时，必须配合合理的 JVM 内存参数设置，以保障基础设施层的稳定性。
+
+---
+
+## 补充方案：双令牌身份持久化方案 (2026-05-05 更新)
+
+在完成授权请求的无状态化后，针对登录成功后的身份持久化，系统进一步实施了 **“HttpOnly Cookie + LocalStorage”** 的双令牌方案。
+
+### 1. 核心决策
+- **HttpOnly Cookie (jwt_token)**：作为网关层认证的“真身”。由网关签发，设置 `HttpOnly: true` 隔绝 JS 访问，防御 XSS。
+- **LocalStorage (jwt_token)**：作为前端 UI 交互的“影子”。由网关通过 URL 参数传回前端，方便 Angular 实时感知登录态及解析用户信息。
+
+### 2. 实现流程 (Implementation Flow)
+整个认证与持久化过程如下：
+
+1.  **登录成功 (Gateway)**：用户通过 Casdoor (OAuth2) 登录成功后，网关的 `authenticationSuccessHandler` 被触发。
+2.  **签发 JWT (Gateway)**：网关根据用户信息生成加密的 JWT Token。
+3.  **写入 Cookie (Gateway)**：网关将 Token 写入 `jwt_token` Cookie，并强制开启 `HttpOnly` 和 `Secure` 属性。
+4.  **影子令牌重定向 (Gateway -> Frontend)**：网关将用户重定向回前端，并在 URL 后缀附加 `?token=...` 参数。
+5.  **提取与持久化 (Frontend)**：前端 Angular 的 `AuthService` 拦截 URL 参数，将 Token 提取并存入 `localStorage`，随后清理 URL（`replaceState`）以防 Token 泄露在浏览历史中。
+6.  **双模识别 (Gateway)**：后续请求进入网关时，`JwtAuthenticationFilter` 会优先检查 Cookie。若 Cookie 缺失（如非浏览器客户端），则回退检查 `Authorization: Bearer` Header。
+
+### 3. 安全与性能考量
+- **防 XSS 劫持**：即便前端 `localStorage` 暴露，核心认证依然由无法被 JS 读取的 Cookie 保护。
+- **UI 响应性**：前端无需发起网络请求即可从本地 Token 解析出用户姓名、头像，实现了秒级的 UI 状态恢复。
+- **拦截优先级**：网关 `JwtAuthenticationFilter` 严格遵循 **“Cookie 优先”** 原则。
+
+### 4. 环境约束
+- **跨域支持**：`jwt_token` 必须配置正确的 `.domain` 属性（如 `.122577.xyz`）以支持多级域名下的 SSO 自动登录。

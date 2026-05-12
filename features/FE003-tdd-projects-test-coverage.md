@@ -107,6 +107,17 @@
 | LK-02 | POST /topics → 创建主题 | 自动生成 ID |
 | LK-03 | DELETE /topics/{id} → 级联清理文档 | 主题和关联文档同时删除 |
 
+**MCP 插件管理与代理 (6)**
+
+| ID | 测试用例 | 验证点 |
+|----|---------|--------|
+| LM-07 | 插件注册 → 自动 ID + Schema 刷新 | 生成 UUID 且调用 `fetchAndCache` |
+| LM-08 | 插件更新 → URL 变更触发刷新 | 配置中 URL 不等时重新 fetch |
+| LM-09 | 插件开关 (Toggle) → 更新用户偏好 | 调用 `userPreferenceMapper.insert/update` |
+| LM-10 | 插件列表 → 合并用户禁用状态 | 用户禁用的插件 `enabled` 设为 false |
+| LI-01 | McpProxyService.callTool 远程代理 | 解析 SSE endpoint 并执行 POST 请求 |
+| LI-02 | McpSchemaFetcher.fetchAndCache SSE 流 | 依次处理 endpoint/handshake/list_tools |
+
 ### 测试基础设施 (Test Infrastructure)
 
 为了平衡本地开发效率与 CI 环境的真实性，采用了双重数据库测试策略：
@@ -225,7 +236,7 @@
 | 工程 | 架构守护 | 核心功能 | 合计 |
 |------|---------|---------|------|
 | ms-java-gateway | 5 | 15 | **20** |
-| ms-java-biz | 4 | 12 | **16** |
+| ms-java-biz | 4 | 18 | **22** |
 | ms-py-agent | 4 | 12 | **16** |
 | ms-ng-view | 3 | 13 | **16** |
-| **总计** | **16** | **52** | **68** |
+| **总计** | **16** | **58** | **74** |

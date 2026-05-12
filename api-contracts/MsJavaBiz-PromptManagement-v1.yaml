@@ -11,8 +11,10 @@ servers:
 paths:
   /rest/biz/v1/prompts/{slug}:
     get:
+      tags:
+        - Runtime
       summary: 获取生效状态的 Prompt 模板与版本配置
-      description: 根据 slug 获取当前标记为 active 的 Prompt 详情，包含内容、变量定义及模型参数。
+      description: 根据 slug 获取当前标记为 active 的 Prompt 详情，用于业务侧执行 LLM 调用。
       parameters:
         - name: slug
           in: path
@@ -28,68 +30,204 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PromptResponse'
-        '400':
-          description: 参数异常 (DEP_0100) - 例如 slug 不存在或没有生效版本
+        '404':
+          description: 提示词未找到 (DEP_0100)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: 未授权 (JWT 校验失败)
-        '500':
-          description: 系统内部错误
+
+  /rest/biz/v1/prompts/templates:
+    get:
+      tags:
+        - Management
+      summary: 获取 Prompt 模板列表
+      responses:
+        '200':
+          description: 成功返回模板列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PromptTemplate'
+
+  /rest/biz/v1/prompts/templates/{templateId}/versions:
+    get:
+      tags:
+        - Management
+      summary: 获取指定模板的版本历史
+      parameters:
+        - name: templateId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功返回版本列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PromptVersion'
+        '404':
+          description: 模板未找到 (DEP_0100)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+        - Management
+      summary: 保存新的 Prompt 版本
+      parameters:
+        - name: templateId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVersionRequest'
+      responses:
+        '200':
+          description: 保存成功
+        '400':
+          description: 内容校验失败 (DEP_0102)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 版本号冲突 (DEP_0101)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /rest/biz/v1/prompts/versions/{versionId}/activate:
+    patch:
+      tags:
+        - Management
+      summary: 激活指定版本
+      parameters:
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 激活成功
+        '404':
+          description: 版本未找到 (DEP_0100)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 激活操作非法 (DEP_0103)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   schemas:
+    PromptTemplate:
+      type: object
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+        type:
+          type: string
+          enum: [System, User, Tool]
+        description:
+          type: string
+        createTime:
+          type: string
+          format: date-time
+        updateTime:
+          type: string
+          format: date-time
+
+    PromptVersion:
+      type: object
+      properties:
+        id:
+          type: integer
+        templateId:
+          type: integer
+        versionTag:
+          type: string
+        content:
+          type: string
+        variables:
+          type: array
+          items:
+            type: string
+        modelConfig:
+          type: object
+        isActive:
+          type: boolean
+        createTime:
+          type: string
+          format: date-time
+
+    CreateVersionRequest:
+      type: object
+      required: [versionTag, content]
+      properties:
+        versionTag:
+          type: string
+          example: "v1.1.0"
+        content:
+          type: string
+        variables:
+          type: array
+          items:
+            type: string
+        modelConfig:
+          type: object
+
     PromptResponse:
       type: object
       properties:
         slug:
           type: string
-          description: 业务唯一标识
-          example: "default_kb_assistant"
         versionTag:
           type: string
-          description: 版本号
-          example: "v1.0.0"
         content:
           type: string
-          description: Prompt 原文内容（含 {{context}} 等占位符）
-          example: "你是一位专业的知识库助手... Context: {{context}}"
         modelConfig:
           type: object
-          description: 模型参数配置 (JSON)
-          example:
-            model: "gemini-1.5-flash"
-            temperature: 0.3
         variables:
           type: array
           items:
             type: string
-          description: 变量定义列表
-          example: ["context"]
 
     ErrorResponse:
       type: object
       properties:
         traceId:
           type: string
-          description: 全链路追踪 ID
         status:
           type: integer
-          description: HTTP 状态码
         error_code:
           type: string
-          description: 业务自定义错误码 (如 DEP_0100 代表参数异常)
           example: "DEP_0100"
         error_msg:
           type: string
-          description: 业务自定义错误消息
-          example: "参数异常：default_kb_assistant不存在"
+          example: "提示词未找到"
         path:
           type: string
-          description: 请求路径
         timestamp:
           type: string
           format: date-time
-          description: 错误发生时间

@@ -136,6 +136,7 @@ graph LR
 - [ ] 对话内容复制 / 导出 / 重新生成
 - [ ] 知识库文档上传与处理进度展示
 - [ ] 错误边界与优雅降级
+- [ ] **跨服务系统级鉴权 (System-to-System Auth)**: 移除 `/mcp/**` 白名单，改用 Casdoor Client Credentials 令牌
 
 ### release_1.2.0 — 多模态与工具扩展
 - [ ] MCP 插件市场（前端管理界面）
