@@ -3,6 +3,73 @@
 > 记录每次重大修改对其他工程的潜在影响。
 
 
+## [2026-05-10] MCP 插件市场（能力集）特性全栈落地
+> 关联特性: [FE014-mcp-plugin-market.md](file:///Users/pei/projects/docs/features/FE014-mcp-plugin-market.md)
+
+### 修改概述
+实现了基于白名单模式的 MCP 插件管理系统，支持在前端动态启用/禁用 MCP 服务端。
+- **动态注册**: `ms-py-agent` 启动时从 Java 后端拉取已启用的插件列表进行动态注册，支持 Stdio 和 SSE 两种模式。
+- **插件市场**: `ms-ng-view` 新增“能力集”管理页面，用户可通过开关切换插件状态。
+- **后端持久化**: `ms-java-biz` 新增 `ms_mcp_plugin` 表管理插件元数据、图标及连接配置。
+- **高可用设计**: Agent 引入 Fallback 机制，在 Java 服务不可用时自动加载基础本地文件系统插件。
+
+### 涉及范围
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-java-biz** | ✅ 核心变更 | 新增插件配置持久化与管理接口，通过 Flyway `V1.8` 预置系统插件。 |
+| **ms-py-agent** | ✅ 核心变更 | 初始化逻辑从硬编码改为动态拉取，增强了 MCP 客户端的扩展性。 |
+| **ms-ng-view** | ✅ 新增特性 | 新增能力集管理 UI，并集成到全局导航系统。 |
+
+### 风险等级: 🟢 低
+- 插件开关目前在 Agent 启动时生效，对运行时稳定性影响较小。
+- 引入了 Fallback 逻辑，确保了基础设施的可观测性和健壮性。
+
+### 验证计划
+- [x] 验证 `ms-java-biz` Flyway `V1.8` 脚本执行成功。
+- [x] 验证 `ms-py-agent` 启动日志显示从后台成功加载 2 个插件。
+- [x] 验证前端“能力集”页面开关操作能正确调用后端 API 并持久化。
+- [x] 模拟 Java 服务关闭，验证 Agent 能成功加载 Fallback 的 `filesystem` 插件。
+
+---
+
+
+## [2026-05-10] ms-py-agent LangGraph 路由架构重构与多 Agent 扩展
+> 关联特性: [FE013-langgraph-router-architecture.md](file:///Users/pei/projects/docs/features/FE013-langgraph-router-architecture.md)
+
+### 修改概述
+将 `ms-py-agent` 的单体 LangGraph 架构重构为**路由架构（Router Pattern）**，并预留了两种多 Agent 对接模式的完整扩展点。
+- **路由架构**：实现 `GlobalRouterGraph` 通过 `router_node` 进行意图分类（关键词优先 + LLM fallback），将请求分发至 RAG / Coding / General / RemoteAgent 四个子图。
+- **Prompt 动态化**：LLM 分类的 System Prompt 从 `ms-java-biz` `/rest/biz/v1/prompts/router_intent_classifier` 接口动态拉取，不可达时自动降级到内置模版。
+- **MCPToolRegistry**：引入官方 `mcp` SDK 替代硬编码工具列表，支持 Stdio（filesystem）和 SSE（ms-java-biz）两种 MCP Server 动态注册。
+- **模式 A（本地子图）**：RAG 子图已完整迁移，Coding / General 子图为 Dummy 占位，可直接扩展。
+- **模式 B（A2A 远端）**：新增 `remote_agent_subgraph`，包含完整的 Nacos 服务发现、状态管理和 A2A Task API 骨架，HTTP 调用以 `pass` 注释保留，待远端 Agent 服务就绪后实现。
+- **GlobalState 扩展**：新增 `handled_by` / `a2a_task_id` / `artifacts` / `handoff_context` 四个 A2A 协作字段，向后兼容。
+
+### 涉及范围
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-py-agent** | ✅ 核心重构 | 路由架构全面落地，MCP 工具动态化，新增 A2A 扩展骨架。旧 `chat_graph.py` 和 `mcp_clients` 保留，向后兼容。 |
+| **ms-java-biz** | 🔵 需配合 | 需在 Prompt 管理后台预置 `slug=router_intent_classifier` 的 Prompt 条目，否则路由分类使用内置兜底 Prompt（不影响功能）。 |
+| **ms-java-gateway** | 🟢 无影响 | 路由规则 `/api/agent/**` 不变。 |
+| **ms-ng-view** | 🟢 无影响 | 前端协议不变，`StreamingResponse` 格式保持一致。 |
+
+### 风险等级: 🟢 低
+- 新旧架构并存：`factory.py` 指向新路由图，旧 `chat_graph.py` 作为遗留代码保留，不中断线上服务。
+- A2A HTTP 调用均为 `pass` 占位，不产生任何外部副作用，在 Nacos 不可达时优雅降级。
+- 21/21 测试通过，路由准确率关键路径均有守护用例覆盖。
+
+### 验证计划
+- [x] 21 个测试用例全部通过（`tests/test_router_graph.py`）
+- [x] 关键词路由 100% 命中率（rag / coding / remote_agent）
+- [x] remote_agent_node 在 Nacos 不可达时返回错误提示而非抛异常
+- [ ] ms-java-biz 预置 `router_intent_classifier` Prompt（待运营配置）
+- [ ] A2A HTTP 调用实现（待远端 Agent 服务就绪后实现）
+
+---
+
+
 ## [2026-05-03] 聊天页面引入 Markdown 渲染支持
 > 关联特性: [FE011-chat-markdown-rendering.md](file:///Users/pei/projects/docs/features/FE011-chat-markdown-rendering.md)
 
