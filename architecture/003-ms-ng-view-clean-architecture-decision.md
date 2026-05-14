@@ -22,12 +22,20 @@ ms-ng-view 前端工程全模块向 4 层整洁架构演进及 API URL 集中化
    - **UI Layer**：作为“傻瓜组件 (Dumb Component)”，仅负责渲染和交互。
 
 2. **API URL 集中化 (URL Centralization)**：
-   - 新增 `src/app/core/constants/url.config.ts`。
+   - 新增 `src/app/core/infrastructure/constants/url.config.ts`。
    - 所有 Adapter 必须通过 `URLConfig` 引用接口路径，严禁在 Adapter 内部出现硬编码 URL。
 
-3. **清理遗留代码与技术债**：
+3. **基础设施层收拢 (Infrastructure Encapsulation)** (追加决策)：
+   - 新增 `src/app/core/infrastructure/` 目录，将原先散落在 `core/` 根目录下的框架强相关实现（`configs`, `constants`, `guards`, `interceptors`, `services`）全部收拢。
+   - 彻底剥离框架技术细节，使得 `core/` 根目录清晰展现 `domain`, `use-cases`, `adapters`, `infrastructure` 的四层架构。
+
+4. **清理遗留代码与技术债**：
     - 彻底废弃并删除 `src/app/core/services/` 下的胖服务（如 `KnowledgeService`, `EventService`），由 `UseCase` 取而代之。
     - 删除 `src/components/` 及其子目录（`mobile-list`, `mobile-detail`），所有功能组件现统一归口至 `src/app/features/`。
+
+5. **领域内聚与语义化命名 (Domain Cohesion & Semantic Naming)** (追加决策)：
+    - **Knowledge 聚合**：将原先平级的 `knowledge` 和 `knowledge-embedding` 特性内聚为统一的 `knowledge` 大类，分别置于 `pages/knowledge-main` 和 `pages/knowledge-embedding` 下，提升相关模块结构的内聚度。
+    - **Countdown 语义化**：将原名为 `landing` 的倒计时与事件管理模块重命名为 `countdown`，确保目录、路由与组件命名（`CountdownComponent`）能够准确反映其“记录倒计时”的业务本质。
 
 ## 5. 影响 (Consequences)
 

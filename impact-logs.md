@@ -3,6 +3,32 @@
 > 记录每次重大修改对其他工程的潜在影响。
 
 
+## [2026-05-13] ms-py-agent 领域模型纯洁性重构与规范对齐
+> 关联决策: [004-ms-py-agent-domain-purity-refactor.md](file:///Users/pei/projects/docs/architecture/004-ms-py-agent-domain-purity-refactor.md)
+
+### 修改概述
+按照《Python 架构与代码规范指南》，对 `ms-py-agent` 的领域模型进行了合规性重构。
+- **实体行为对齐**: 将 `ChatMessage` 从 `@dataclass(frozen=True)` 重构为 `@dataclass(eq=False)`，并手动实现了基于 `id` 的 `__eq__` 和 `__hash__` 方法。
+- **语义修正**: 纠正了原先将实体（Entity）错误当作值对象（Value Object）处理的问题，确保标识一致性（Identity Consistency）。
+- **校验增强**: 维持并验证了 `__post_init__` 中的业务校验逻辑，确保领域对象创建即合法。
+
+### 涉及范围
+
+| 子工程 | 影响程度 | 分析 |
+|--------|----------|------|
+| **ms-py-agent** | 🔵 内部重构 | 仅涉及领域模型定义层，由于标识相等性逻辑对齐了业务主键，不会影响现有的 LangGraph 状态机或数据库映射。 |
+
+### 风险等级: 🟢 低
+- 内部逻辑重构，不改变 API 协议。
+- 手动实现的 `__eq__` 包含对未持久化对象（`id is None`）的内存地址 fallback，确保了状态机运行时的对象对比稳定性。
+
+### 验证计划
+- [ ] 运行现有单元测试，确保 `ChatMessage` 在状态机（LangGraph）中的流转不受影响。
+- [ ] 验证包含相同 `id` 但不同 `content` 的两个 `ChatMessage` 对象在业务逻辑中被判定为 `==`。
+
+---
+
+
 ## [2026-05-10] MCP 插件市场（能力集）特性全栈落地
 > 关联特性: [FE014-mcp-plugin-market.md](file:///Users/pei/projects/docs/features/FE014-mcp-plugin-market.md)
 
