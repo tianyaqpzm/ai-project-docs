@@ -9,7 +9,7 @@ servers:
     description: 网关根路径
 
 paths:
-  /rest/dark/v1/user/me:
+  /rest/biz/v1/user/me:
     get:
       tags:
         - User

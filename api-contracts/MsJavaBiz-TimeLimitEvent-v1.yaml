@@ -9,7 +9,7 @@ servers:
     description: 网关根路径
 
 paths:
-  /rest/dark/v1/time-limit-events:
+  /rest/biz/v1/time-limit-events:
     get:
       tags:
         - Time Limited Event
@@ -53,7 +53,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /rest/dark/v1/time-limit-events/{id}:
+  /rest/biz/v1/time-limit-events/{id}:
     get:
       tags:
         - Time Limited Event

@@ -2,7 +2,7 @@
 
 > 创建时间：2026-05-10  
 > 工程范围：ms-py-agent  
-> 状态：✅ 已完成（A2A 远端 Agent HTTP 调用待实现）
+> 状态：✅ 已完成（含 General/Coding 子图完善，A2A 远端 Agent HTTP 调用待实现）
 
 ---
 
@@ -31,8 +31,8 @@
     ▼ router_node（关键词优先 + LLM fallback）
     │
     ├─ intent = "rag"          → rag_subgraph（本地，已实现）
-    ├─ intent = "coding"       → coding_subgraph（本地，Dummy 占位）
-    ├─ intent = "general"      → general_subgraph（本地，Dummy 占位）
+    ├─ intent = "coding"       → coding_subgraph（本地，已实现）
+    ├─ intent = "general"      → general_subgraph（本地，已实现）
     └─ intent = "remote_agent" → remote_agent_subgraph（A2A，结构完整，HTTP 待实现）
 ```
 
@@ -74,8 +74,8 @@ ms-py-agent/
 │   │   └── graph.py                    # Global Router Graph（4 个子图节点）
 │   └── subgraphs/
 │       ├── rag_graph.py                # RAG 子图（完整，MCPToolRegistry 集成）
-│       ├── coding_graph.py             # Coding 子图（Dummy 占位）
-│       ├── general_graph.py            # General 子图（Dummy 占位）
+│       ├── coding_graph.py             # Coding 子图（已完善，接入 LLM + MCP）
+│       ├── general_graph.py            # General 子图（已完善，接入 LLM + MCP）
 │       └── remote_agent_graph.py       # A2A 子图（结构完整，HTTP 调用 pass）
 ├── app/core/
 │   ├── mcp_registry.py                 # MCPToolRegistry 单例（官方 mcp SDK）
@@ -139,5 +139,30 @@ _INTENT_TO_AGENT = {             # ← 添加 intent → Nacos 服务名映射
 - [x] "委托外部agent" → intent=remote_agent，100% 命中
 - [x] remote_agent_node 在 Nacos 不可达时返回错误提示而非抛异常
 - [x] GlobalState 包含 4 个 A2A 扩展字段
-- [ ] ms-java-biz 预置 `router_intent_classifier` Prompt（待运营配置）
+- [x] ms-java-biz 预置 `router_intent_classifier` Prompt
+- [x] ms-java-biz 预置 `general_assistant` / `coding_assistant` Prompt
+- [x] General & Coding 子图实现功能闭环（含工具调用支持）
 - [ ] A2A HTTP 调用实现（待远端 Agent 服务就绪后实现）
+
+---
+
+## 九、General & Coding 子图完善 (2026-05-13)
+
+### 1. 目标 (Objectives)
+- 将 `general_subgraph` 和 `coding_subgraph` 从占位符实现升级为功能完备的 Agent。
+- 全面支持动态工具调用（MCP）。
+- 接入基于人格的 System Prompt 动态管理。
+- 确保流式输出（Streaming）在路由架构下正常透传。
+
+### 2. 核心逻辑实现
+- **LLM 适配**: 通过 `LLMFactory` 统一获取实例，并从 `dynamic_config` 实时同步参数。
+- **工具绑定**: 利用 `mcp_tool_registry` 动态发现并绑定工具，实现“一次注册，全场景可用”。
+- **人格管理**: 
+  - General：slug=`general_assistant`，侧重通用协作与工具调度。
+  - Coding：slug=`coding_assistant`，侧重编程专家知识与代码沙箱逻辑。
+- **循环工作流**: 
+  `Agent (LLM) -> Conditional Router (tools?) -> Tool Node (execution) -> Agent`
+
+### 3. API 适配变动
+- 更新 `app/api/routers/chat.py` 中的 `on_chain_end` 捕获逻辑。
+- 显式监听 `rag_subgraph`, `general_subgraph`, `coding_subgraph` 的结束事件，确保最终回复能被正确解析并持久化。

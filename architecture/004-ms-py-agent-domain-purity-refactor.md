@@ -31,14 +31,36 @@
 - 在 `Config` 类中显式声明所有配置项（包括 `KB_LLM_*` 等）。
 - 统一 MCP 通信路径为 `/mcp/messages`，确保跨语言服务调用的标准一致性。
 
+## [2026-05-13 补充] 实体与值对象相等性规范强化
+在 2026-05-13 的代码审视中发现，虽然领域层已建立，但对于“实体 (Entity)”与“值对象 (Value Object)”的判定与实现仍存在模糊地带（如 `ChatMessage` 曾被错误定义为 frozen 的值对象）。
+
+**新增细化决策**：
+1. **实体基准实现**：
+   - 实体类（具有唯一 ID 且生命周期内状态可变）必须使用 `@dataclass(eq=False)` 声明。
+   - 必须手动实现 `__eq__` 和 `__hash__`，且逻辑**仅依赖于标识符（id 或 uuid）**。
+2. **值对象基准实现**：
+   - 值对象（仅由属性定义，无唯一标识）必须使用 `@dataclass(frozen=True)`。
+3. **校验前置**：
+   - 统一在 `__post_init__` 中执行业务校验，确保领域对象创建即合法。
+
+**审视结果总结 (2026-05-13)**：
+| 规范项 | 结论 | 现状说明 |
+| :--- | :--- | :--- |
+| **100% 类型覆盖** | ✅ 符合 | `ChatMessage` 与 `ServiceInstance` 字段均包含完整 Type Hints。 |
+| **ORM 隔离** | ✅ 符合 | 领域模型使用纯 `@dataclass`，与 SQLAlchemy 模型完全解耦。 |
+| **值对象规范** | ✅ 符合 | `ServiceInstance` 正确使用 `frozen=True` 声明。 |
+| **业务校验** | ✅ 符合 | 校验逻辑统一封装在 `__post_init__` 中，防范非法状态。 |
+| **实体规范** | ⚠️ 已修正 | `ChatMessage` 已从值对象重构为基于 ID 标识的实体。 |
+
 ## 后果
 ### 正面影响
 - **代码健壮性**: 修复了 `retrieval.py` 中的拼写错误，补全了配置缺失，系统启动与运行更加稳定。
+- **标识一致性**: 修复了 `ChatMessage` 的相等性逻辑，确保了实体在集合或状态机流转中的唯一性判定准确。
 - **易读性与维护性**: 强类型系统提供了更好的 IDE 补全和静态检查能力。
 - **架构一致性**: `ms-py-agent` 的结构现在与 `ms-java-biz` 和 `ms-ng-view` 的整洁架构标准完全对齐。
 
 ### 负面影响
-- **代码量略增**: 引入了额外的领域模型定义与类型标注。
+- **代码量略增**: 引入了额外的领域模型定义、类型标注以及手动相等性实现。
 - **开发门槛**: 要求开发者严格遵守类型约束与异常处理规范。
 
 ## 涉及文件
@@ -46,3 +68,4 @@
 - [MODIFY] `app/core/config.py`, `app/core/dynamic_config.py`, `app/core/nacos.py`, `app/core/lifecycle.py`
 - [MODIFY] `app/services/mcp_client.py`, `app/services/kb/retrieval.py`, `app/services/kb/generation.py`
 - [MODIFY] `app/agent/state.py`
+- [UPDATE 2026-05-13] `app/domain/models.py` (ChatMessage 重构)
