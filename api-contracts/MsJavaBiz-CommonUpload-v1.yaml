@@ -9,7 +9,7 @@ servers:
     description: 网关根路径
 
 paths:
-  /rest/dark/v1/upload/{type}:
+  /rest/biz/v1/upload/{type}:
     post:
       tags:
         - Common Upload

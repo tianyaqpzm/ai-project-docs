@@ -9,7 +9,7 @@ servers:
     description: 网关根路径
 
 paths:
-  /api/business/xiaozhi/chat:
+  /rest/biz/v1/xiaozhi/chat:
     post:
       tags:
         - Xiaozhi Agent
@@ -36,7 +36,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /rest/dark/v1/history:
+  /rest/biz/v1/history:
     get:
       tags:
         - Chat History
@@ -65,7 +65,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /rest/dark/v1/history/sessions:
+  /rest/biz/v1/history/sessions:
     get:
       tags:
         - Chat History
@@ -85,7 +85,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /rest/dark/v1/history/sessions/{sessionId}:
+  /rest/biz/v1/history/sessions/{sessionId}:
     delete:
       tags:
         - Chat History

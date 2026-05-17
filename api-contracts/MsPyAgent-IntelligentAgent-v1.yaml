@@ -9,7 +9,7 @@ servers:
     description: 网关根路径
 
 paths:
-  /rest/dark/v1/agent/chat:
+  /rest/agent/v1/chat:
     post:
       tags:
         - Intelligent Agent
@@ -36,7 +36,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /rest/kb/v1/documents/ingest:
+  /rest/agent/v1/documents/ingest:
     post:
       tags:
         - Knowledge Base
@@ -67,7 +67,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /rest/kb/v1/retrieve:
+  /rest/agent/v1/retrieve:
     post:
       tags:
         - Knowledge Base
@@ -93,7 +93,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /rest/kb/v1/ask:
+  /rest/agent/v1/ask:
     post:
       tags:
         - Knowledge Base
